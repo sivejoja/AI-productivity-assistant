@@ -1,6 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Mail, FileText, ListTodo, Search, MessageSquare, Sparkles, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import heroBg from "@/assets/hero-ai-bg.jpg";
+
+
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -42,18 +45,27 @@ const features = [
 function Dashboard() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-8 p-4 md:p-8">
-      <section className="rounded-xl border bg-gradient-to-br from-primary/10 via-background to-background p-6 md:p-10">
-        <div className="flex items-center gap-2 text-sm text-primary">
-          <Sparkles className="h-4 w-4" />
-          <span className="font-medium">Welcome back</span>
+      <section
+        className="relative overflow-hidden rounded-xl border p-6 md:p-10"
+        style={{
+          backgroundImage: `linear-gradient(135deg, oklch(0.15 0.05 264 / 0.85), oklch(0.2 0.08 290 / 0.7)), url(${heroBg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="relative">
+          <div className="flex items-center gap-2 text-sm text-white/90">
+            <Sparkles className="h-4 w-4" />
+            <span className="font-medium">Welcome back</span>
+          </div>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white md:text-4xl">
+            Your AI workplace, organized.
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-white/80 md:text-base">
+            Automate the busywork — write emails, summarize meetings, plan projects, and
+            research topics. Pick a tool to get started.
+          </p>
         </div>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
-          Your AI workplace, organized.
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
-          Automate the busywork — write emails, summarize meetings, plan projects, and
-          research topics. Pick a tool to get started.
-        </p>
       </section>
 
       <section>

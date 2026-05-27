@@ -48,7 +48,7 @@ Constraints / context: ${constraints || "(none)"}`;
       icon={<ListTodo className="h-5 w-5" />}
     >
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-4 rounded-lg border bg-card p-4">
+        <div className="space-y-4 rounded-lg border bg-card p-4 shadow-sm">
           <div className="space-y-2">
             <Label htmlFor="goal">Goal or project *</Label>
             <Textarea

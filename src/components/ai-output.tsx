@@ -39,7 +39,7 @@ export function AiOutput({ content, loading, onChange }: Props) {
   }
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg border bg-card shadow-sm">
       <div className="flex items-center justify-between border-b px-3 py-2">
         <span className="text-xs font-medium text-muted-foreground">AI Output</span>
         <div className="flex gap-1">

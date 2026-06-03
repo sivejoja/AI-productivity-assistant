@@ -3,9 +3,7 @@ import mammoth from "mammoth";
 
 async function parsePdf(file: File): Promise<string> {
   const pdfjs = await import("pdfjs-dist");
-  // Use a CDN worker matching the installed version to avoid bundler worker setup.
-  // @ts-expect-error - version field exists at runtime
-  const version = pdfjs.version as string;
+  const version = (pdfjs as unknown as { version: string }).version;
   pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
   const buf = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({ data: buf }).promise;

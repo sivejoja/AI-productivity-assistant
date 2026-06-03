@@ -82,15 +82,21 @@ TARGET PREFERENCES:
           <div className="space-y-2">
             <Label htmlFor="cv-file">Upload CV (.txt) or paste below</Label>
             <div className="flex items-center gap-2">
+            <Label htmlFor="cv-file">Upload CV (PDF, Word, or text)</Label>
+            <div className="flex items-center gap-2">
               <Input
                 id="cv-file"
                 type="file"
-                accept=".txt,.md,text/plain"
+                accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                 onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+                disabled={parsing}
                 className="cursor-pointer"
               />
               <Upload className="h-4 w-4 text-muted-foreground" />
             </div>
+            {parsing && (
+              <p className="text-xs text-muted-foreground">Extracting text…</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="cv">Your CV *</Label>

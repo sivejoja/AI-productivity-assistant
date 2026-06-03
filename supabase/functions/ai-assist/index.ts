@@ -5,7 +5,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-type Feature = "email" | "meeting" | "tasks" | "research" | "chat";
+type Feature = "email" | "meeting" | "tasks" | "research" | "chat" | "autoapply";
 
 interface Body {
   feature: Feature;
@@ -53,6 +53,31 @@ Return markdown with:
 Be balanced and note uncertainty where relevant. Do not fabricate sources or statistics.`;
     case "chat":
       return `You are a helpful, concise AI workplace assistant. Use markdown formatting. Be direct, friendly, and professional. If a request is ambiguous, ask a brief clarifying question.`;
+    case "autoapply":
+      return `You are an AI Auto Apply assistant. Given a candidate's CV/resume and target preferences (role, location, work type), do TWO things:
+
+1. Extract a short candidate profile (top skills, years of experience, seniority, domains).
+2. Generate 5 realistic, plausible job matches that fit the profile. These are illustrative examples — clearly mark them as suggested matches, not live job postings.
+
+Return markdown in this exact structure:
+
+## Candidate Profile
+- **Headline:** one-line summary
+- **Top skills:** comma-separated
+- **Experience:** years + seniority
+- **Best-fit roles:** comma-separated
+
+## Suggested Job Matches
+For each of 5 jobs, use this template:
+
+### {n}. {Job Title} — {Company} *(Match: {%})*
+- **Location:** {location} · {remote/hybrid/onsite}
+- **Why it fits:** 1–2 sentences tying CV to the role.
+- **Tailored cover letter:**
+> A concise 4–6 sentence cover letter written in first person, referencing specific CV strengths and the role.
+- **One-click apply checklist:** 3 short bullets the candidate should confirm before submitting.
+
+End with a brief note that these matches are AI-generated suggestions and the user should verify openings on the actual employer site before applying.`;
   }
 }
 

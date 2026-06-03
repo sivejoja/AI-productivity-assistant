@@ -7,6 +7,7 @@ import {
   Search,
   MessageSquare,
   Sparkles,
+  Briefcase,
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,6 +28,7 @@ const items = [
   { title: "Meeting Summarizer", url: "/meetings", icon: FileText },
   { title: "Task Planner", url: "/tasks", icon: ListTodo },
   { title: "Research Assistant", url: "/research", icon: Search },
+  { title: "AI Auto Apply", url: "/autoapply", icon: Briefcase },
   { title: "AI Chatbot", url: "/chat", icon: MessageSquare },
 ] as const;
 

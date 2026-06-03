@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Mail, FileText, ListTodo, Search, MessageSquare, Sparkles, ArrowRight } from "lucide-react";
+import { Mail, FileText, ListTodo, Search, MessageSquare, Sparkles, ArrowRight, Briefcase } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import heroBg from "@/assets/hero-ai-bg.jpg";
 
@@ -33,6 +33,12 @@ const features = [
     description: "Get structured briefings with key points, tradeoffs, and next steps.",
     url: "/research",
     icon: Search,
+  },
+  {
+    title: "AI Auto Apply",
+    description: "Upload your CV, get matched jobs, and generate tailored applications.",
+    url: "/autoapply",
+    icon: Briefcase,
   },
   {
     title: "AI Chatbot",

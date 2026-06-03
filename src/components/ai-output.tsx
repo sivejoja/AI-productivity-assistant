@@ -70,7 +70,13 @@ export function AiOutput({ content, loading, onChange }: Props) {
           />
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown>{value}</ReactMarkdown>
+            <ReactMarkdown
+              components={{
+                a: ({ node, ...props }) => (
+                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:opacity-80" />
+                ),
+              }}
+            >{value}</ReactMarkdown>
           </div>
         )}
       </div>

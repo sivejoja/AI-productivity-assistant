@@ -80,8 +80,6 @@ TARGET PREFERENCES:
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4 rounded-lg border bg-card p-4">
           <div className="space-y-2">
-            <Label htmlFor="cv-file">Upload CV (.txt) or paste below</Label>
-            <div className="flex items-center gap-2">
             <Label htmlFor="cv-file">Upload CV (PDF, Word, or text)</Label>
             <div className="flex items-center gap-2">
               <Input

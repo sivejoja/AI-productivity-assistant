@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { callAi } from "@/lib/ai";
+import { extractCvText } from "@/lib/cv-parser";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/autoapply")({
@@ -21,19 +22,28 @@ function AutoApply() {
   const [workType, setWorkType] = useState("");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [parsing, setParsing] = useState(false);
 
   const onFile = async (file: File | null) => {
     if (!file) return;
-    if (file.size > 200_000) {
-      toast.error("Please upload a text file under 200KB. For PDFs, paste the text.");
+    if (file.size > 10_000_000) {
+      toast.error("File too large. Please upload a file under 10MB.");
       return;
     }
+    setParsing(true);
     try {
-      const text = await file.text();
-      setCv(text);
-      toast.success(`Loaded ${file.name}`);
-    } catch {
-      toast.error("Could not read file. Paste your CV instead.");
+      const text = await extractCvText(file);
+      const cleaned = text.replace(/\s+\n/g, "\n").trim();
+      if (cleaned.length < 30) {
+        toast.error("Couldn't extract readable text from this file.");
+        return;
+      }
+      setCv(cleaned);
+      toast.success(`Loaded ${file.name} (${cleaned.length.toLocaleString()} chars)`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not read file.");
+    } finally {
+      setParsing(false);
     }
   };
 

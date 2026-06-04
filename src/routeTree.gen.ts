@@ -14,6 +14,7 @@ import { Route as ResearchRouteImport } from './routes/research'
 import { Route as MeetingsRouteImport } from './routes/meetings'
 import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as EmailRouteImport } from './routes/email'
+import { Route as CvRevampRouteImport } from './routes/cv-revamp'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AutoapplyRouteImport } from './routes/autoapply'
 import { Route as IndexRouteImport } from './routes/index'
@@ -43,6 +44,11 @@ const EmailRoute = EmailRouteImport.update({
   path: '/email',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CvRevampRoute = CvRevampRouteImport.update({
+  id: '/cv-revamp',
+  path: '/cv-revamp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatRoute = ChatRouteImport.update({
   id: '/chat',
   path: '/chat',
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/autoapply': typeof AutoapplyRoute
   '/chat': typeof ChatRoute
+  '/cv-revamp': typeof CvRevampRoute
   '/email': typeof EmailRoute
   '/jobs': typeof JobsRoute
   '/meetings': typeof MeetingsRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/autoapply': typeof AutoapplyRoute
   '/chat': typeof ChatRoute
+  '/cv-revamp': typeof CvRevampRoute
   '/email': typeof EmailRoute
   '/jobs': typeof JobsRoute
   '/meetings': typeof MeetingsRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/autoapply': typeof AutoapplyRoute
   '/chat': typeof ChatRoute
+  '/cv-revamp': typeof CvRevampRoute
   '/email': typeof EmailRoute
   '/jobs': typeof JobsRoute
   '/meetings': typeof MeetingsRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/autoapply'
     | '/chat'
+    | '/cv-revamp'
     | '/email'
     | '/jobs'
     | '/meetings'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/autoapply'
     | '/chat'
+    | '/cv-revamp'
     | '/email'
     | '/jobs'
     | '/meetings'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/autoapply'
     | '/chat'
+    | '/cv-revamp'
     | '/email'
     | '/jobs'
     | '/meetings'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AutoapplyRoute: typeof AutoapplyRoute
   ChatRoute: typeof ChatRoute
+  CvRevampRoute: typeof CvRevampRoute
   EmailRoute: typeof EmailRoute
   JobsRoute: typeof JobsRoute
   MeetingsRoute: typeof MeetingsRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmailRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cv-revamp': {
+      id: '/cv-revamp'
+      path: '/cv-revamp'
+      fullPath: '/cv-revamp'
+      preLoaderRoute: typeof CvRevampRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chat': {
       id: '/chat'
       path: '/chat'
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AutoapplyRoute: AutoapplyRoute,
   ChatRoute: ChatRoute,
+  CvRevampRoute: CvRevampRoute,
   EmailRoute: EmailRoute,
   JobsRoute: JobsRoute,
   MeetingsRoute: MeetingsRoute,

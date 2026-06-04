@@ -1,6 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 
-export type Feature = "email" | "meeting" | "tasks" | "research" | "chat" | "autoapply";
+export type Feature =
+  | "email"
+  | "meeting"
+  | "tasks"
+  | "research"
+  | "chat"
+  | "autoapply"
+  | "cvrevamp";
 
 export interface ChatMessage {
   role: "user" | "assistant";

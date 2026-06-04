@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as MeetingsRouteImport } from './routes/meetings'
+import { Route as JobsRouteImport } from './routes/jobs'
 import { Route as EmailRouteImport } from './routes/email'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AutoapplyRouteImport } from './routes/autoapply'
@@ -30,6 +31,11 @@ const ResearchRoute = ResearchRouteImport.update({
 const MeetingsRoute = MeetingsRouteImport.update({
   id: '/meetings',
   path: '/meetings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JobsRoute = JobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmailRoute = EmailRouteImport.update({
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/autoapply': typeof AutoapplyRoute
   '/chat': typeof ChatRoute
   '/email': typeof EmailRoute
+  '/jobs': typeof JobsRoute
   '/meetings': typeof MeetingsRoute
   '/research': typeof ResearchRoute
   '/tasks': typeof TasksRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/autoapply': typeof AutoapplyRoute
   '/chat': typeof ChatRoute
   '/email': typeof EmailRoute
+  '/jobs': typeof JobsRoute
   '/meetings': typeof MeetingsRoute
   '/research': typeof ResearchRoute
   '/tasks': typeof TasksRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/autoapply': typeof AutoapplyRoute
   '/chat': typeof ChatRoute
   '/email': typeof EmailRoute
+  '/jobs': typeof JobsRoute
   '/meetings': typeof MeetingsRoute
   '/research': typeof ResearchRoute
   '/tasks': typeof TasksRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/autoapply'
     | '/chat'
     | '/email'
+    | '/jobs'
     | '/meetings'
     | '/research'
     | '/tasks'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/autoapply'
     | '/chat'
     | '/email'
+    | '/jobs'
     | '/meetings'
     | '/research'
     | '/tasks'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/autoapply'
     | '/chat'
     | '/email'
+    | '/jobs'
     | '/meetings'
     | '/research'
     | '/tasks'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   AutoapplyRoute: typeof AutoapplyRoute
   ChatRoute: typeof ChatRoute
   EmailRoute: typeof EmailRoute
+  JobsRoute: typeof JobsRoute
   MeetingsRoute: typeof MeetingsRoute
   ResearchRoute: typeof ResearchRoute
   TasksRoute: typeof TasksRoute
@@ -142,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/meetings'
       fullPath: '/meetings'
       preLoaderRoute: typeof MeetingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/jobs': {
+      id: '/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/email': {
@@ -180,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   AutoapplyRoute: AutoapplyRoute,
   ChatRoute: ChatRoute,
   EmailRoute: EmailRoute,
+  JobsRoute: JobsRoute,
   MeetingsRoute: MeetingsRoute,
   ResearchRoute: ResearchRoute,
   TasksRoute: TasksRoute,
@@ -187,3 +208,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

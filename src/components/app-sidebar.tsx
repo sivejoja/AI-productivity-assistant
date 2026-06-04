@@ -8,6 +8,8 @@ import {
   MessageSquare,
   Sparkles,
   Briefcase,
+  Globe,
+  FileEdit,
 } from "lucide-react";
 import {
   Sidebar,
@@ -24,11 +26,13 @@ import {
 
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Job Seeker Portal", url: "/jobs", icon: Globe },
+  { title: "AI Auto Apply", url: "/autoapply", icon: Briefcase },
+  { title: "CV Revamp", url: "/cv-revamp", icon: FileEdit },
   { title: "Email Generator", url: "/email", icon: Mail },
   { title: "Meeting Summarizer", url: "/meetings", icon: FileText },
   { title: "Task Planner", url: "/tasks", icon: ListTodo },
   { title: "Research Assistant", url: "/research", icon: Search },
-  { title: "AI Auto Apply", url: "/autoapply", icon: Briefcase },
   { title: "AI Chatbot", url: "/chat", icon: MessageSquare },
 ] as const;
 

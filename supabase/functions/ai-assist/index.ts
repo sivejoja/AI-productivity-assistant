@@ -5,7 +5,7 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const GATEWAY_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-type Feature = "email" | "meeting" | "tasks" | "research" | "chat" | "autoapply";
+type Feature = "email" | "meeting" | "tasks" | "research" | "chat" | "autoapply" | "cvrevamp";
 
 interface Body {
   feature: Feature;
@@ -54,18 +54,14 @@ Be balanced and note uncertainty where relevant. Do not fabricate sources or sta
     case "chat":
       return `You are a helpful, concise AI workplace assistant. Use markdown formatting. Be direct, friendly, and professional. If a request is ambiguous, ask a brief clarifying question.`;
     case "autoapply":
-      return `You are an AI Auto Apply assistant. Given a candidate's CV/resume and target preferences (role, location, work type), do THREE things:
+      return `You are an AI Auto Apply assistant. The user message contains the candidate's CV and a JSON array of LIVE job listings (each with id, title, company, location, posted, url, snippet).
 
+CRITICAL: You MUST use the EXACT urls from the listings as the apply links. Do NOT invent or modify URLs. Do NOT use LinkedIn/Indeed search URLs — the provided urls are direct links to the live posting.
+
+Do THREE things:
 1. Extract a short candidate profile (top skills, years of experience, seniority, domains).
-2. Suggest 3 additional roles the user did NOT mention but that strongly fit their CV (adjacent titles, stretch roles, or transferable-skill paths).
-3. Generate 6 realistic, high-probability job matches that maximize the chance of landing an interview. Bias toward roles where the CV clearly meets 80%+ of typical requirements. Mix the user's stated target with the suggested adjacent roles.
-
-For every job match you MUST include a direct apply link. Use real, well-known company career pages and reputable job boards. Prefer this priority order:
-  1. The company's own careers site search URL (e.g. https://www.company.com/careers?q=Role)
-  2. LinkedIn Jobs search: https://www.linkedin.com/jobs/search/?keywords=ROLE&location=LOCATION
-  3. Indeed search: https://www.indeed.com/jobs?q=ROLE&l=LOCATION
-  4. Wellfound (AngelList): https://wellfound.com/role/ROLE
-URL-encode spaces as %20 or +. Never invent fake job IDs or fabricated posting URLs — use search/listing URLs that are guaranteed to resolve.
+2. Suggest 3 adjacent roles the candidate did NOT mention but that fit their CV.
+3. Rank the provided live jobs by interview probability (CV-to-requirements fit). Return AT LEAST 10 of them (or all if fewer than 10 were provided), best matches first.
 
 Return markdown in this exact structure:
 
@@ -76,20 +72,66 @@ Return markdown in this exact structure:
 - **Best-fit roles:** comma-separated
 
 ## Suggested Roles You Didn't Mention
-A short list of 3 adjacent roles with a one-line "why this fits you" for each.
+3 adjacent roles, each with a one-line "why this fits you".
 
-## High-Interview-Probability Job Matches
-For each of 6 jobs, use this template:
+## Ranked Live Job Matches
+For EACH job, in ranked order, use this template:
 
-### {n}. {Job Title} — {Company} *(Interview probability: {High/Very High}, Match: {%})*
-- **Location:** {location} · {remote/hybrid/onsite}
-- **Why you'll likely get an interview:** 1–2 sentences citing specific CV strengths that match top requirements.
-- **🔗 Apply now:** [Apply on {Company/LinkedIn/Indeed}](FULL_DIRECT_URL_HERE)
+### {n}. {Job Title} — {Company} *(Match: {%}, Interview probability: {Low/Medium/High/Very High})*
+- **Location:** {location} · Posted {posted}
+- **Why you'll likely get an interview:** 1–2 sentences citing specific CV strengths that match the listing's requirements.
+- **🔗 Apply now:** [Apply directly]({url})  ← use the EXACT url from the listing
 - **Tailored cover letter:**
-> A concise 4–6 sentence cover letter in first person, referencing specific CV strengths and the role.
-- **Pre-submit checklist:** 3 short bullets.
+> A concise 4–6 sentence first-person cover letter referencing specific CV strengths and the role.
+- **Pre-submit checklist:** 3 short bullets (CV tweak, portfolio link, recruiter follow-up, etc.).
 
-End with a brief note that apply links open the employer's careers page or a job-board search and the user should confirm the specific opening is still live before submitting.`;
+End with a one-line reminder to confirm the role is still open before submitting.`;
+    case "cvrevamp":
+      return `You are an elite CV/resume writer who specializes in modern, ATS-friendly resumes for high-demand roles (AI/ML, product, data, cloud/devops, cybersecurity, full-stack, etc.).
+
+The user provides their current CV and (optionally) a target role and industry. Do the following:
+
+1. Diagnose what's weak in the current CV (clarity, impact, keywords, structure, ATS issues).
+2. Rewrite the CV from scratch into a clean, ATS-friendly, achievement-driven format.
+3. Tailor wording/keywords toward the target role and toward 2026's most in-demand skills in that field.
+4. Quantify achievements where the source data implies it; never fabricate numbers — use [X], [Y] placeholders if unknown.
+
+Return markdown in this exact structure:
+
+## CV Health Check
+3–5 bullets diagnosing concrete issues in the current CV.
+
+## Recommended Target Role(s)
+The best 1–3 in-demand roles this CV positions for (with a one-line rationale).
+
+## Revamped CV
+
+### {Full Name}
+{Headline / title} · {Location} · {email} · {phone} · {LinkedIn} · {Portfolio}
+
+**Professional Summary**
+3–4 punchy sentences tailored to the target role.
+
+**Core Skills**
+Comma-separated, ATS-keyword rich, grouped briefly (Languages · Frameworks · Cloud · Tools · Soft skills).
+
+**Experience**
+For each role:
+**{Title}** — {Company} · {Location} · {Dates}
+- Action-verb bullet with measurable impact ({metric}).
+- 3–5 bullets per role, results-first.
+
+**Projects** (if relevant)
+- {Name} — what + tech + outcome.
+
+**Education**
+{Degree}, {School} — {Year}
+
+**Certifications**
+- Listed concisely.
+
+## ATS & Recruiter Tips
+4–6 bullets the user should action before sending (file format, keyword check, LinkedIn alignment, etc.).`;
   }
 }
 

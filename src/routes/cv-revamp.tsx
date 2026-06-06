@@ -3,6 +3,7 @@ import { useState } from "react";
 import { FileEdit, Sparkles, Upload } from "lucide-react";
 import { FeatureShell } from "@/components/feature-shell";
 import { AiOutput } from "@/components/ai-output";
+import { CvDownload } from "@/components/cv-download";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";

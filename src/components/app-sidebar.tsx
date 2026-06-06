@@ -75,11 +75,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
-        <div className="px-2 py-2 text-[11px] leading-relaxed text-muted-foreground">
-          AI-generated content may be inaccurate. Always review before use.
-        </div>
-      </SidebarFooter>
+      <SidebarFooter />
+
     </Sidebar>
   );
 }

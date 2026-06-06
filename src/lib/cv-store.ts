@@ -1,29 +1,17 @@
-// Tiny localStorage-backed CV store shared across features.
-const KEY = "ai-workplace:cv";
-
+// CV state is intentionally NOT persisted across sessions.
+// Every time the user opens the app, they start with a fresh CV.
 export function loadCv(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return localStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
+  return null;
 }
 
-export function saveCv(text: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    if (text.trim().length === 0) localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, text);
-  } catch {
-    /* ignore quota errors */
-  }
+export function saveCv(_text: string): void {
+  /* no-op: do not remember uploaded CV across reloads */
 }
 
 export function clearCv(): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem("ai-workplace:cv");
   } catch {
     /* ignore */
   }

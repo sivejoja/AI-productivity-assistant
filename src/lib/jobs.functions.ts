@@ -136,6 +136,7 @@ export const searchJobs = createServerFn({ method: "POST" })
           redirect_url: r.url,
         });
       }
+      jobs.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
       return { jobs, total: jobs.length, error: null as string | null };
     } catch (e) {
       console.error("Firecrawl fetch failed", e);

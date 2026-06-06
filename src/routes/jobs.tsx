@@ -66,7 +66,7 @@ function JobsPortal() {
   const [what, setWhat] = useState("");
   const [where, setWhere] = useState("");
   const [country, setCountry] = useState("us");
-  const [maxDays, setMaxDays] = useState("30");
+  const [maxDays, setMaxDays] = useState("7");
   const search = useServerFn(searchJobs);
 
   const mutation = useMutation({

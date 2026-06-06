@@ -136,8 +136,21 @@ INDUSTRY / FOCUS: ${industry || "(open)"}`;
             {loading ? "Revamping…" : "Revamp my CV"}
           </Button>
         </div>
-        <AiOutput content={output} loading={loading} onChange={setOutput} />
+        <div className="space-y-3">
+          {output && (
+            <div className="flex justify-end">
+              <CvDownload content={extractRevampedCv(output)} />
+            </div>
+          )}
+          <AiOutput content={output} loading={loading} onChange={setOutput} />
+        </div>
       </div>
     </FeatureShell>
   );
+}
+
+// Pull just the "## Revamped CV" section so downloads contain only the CV.
+function extractRevampedCv(md: string): string {
+  const m = md.match(/##\s*Revamped CV[\s\S]*?(?=\n##\s|$)/i);
+  return (m ? m[0] : md).trim();
 }

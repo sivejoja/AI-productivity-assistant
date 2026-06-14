@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as SaGovJobsRouteImport } from './routes/sa-gov-jobs'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as MeetingsRouteImport } from './routes/meetings'
 import { Route as JobsRouteImport } from './routes/jobs'
@@ -22,6 +23,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SaGovJobsRoute = SaGovJobsRouteImport.update({
+  id: '/sa-gov-jobs',
+  path: '/sa-gov-jobs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResearchRoute = ResearchRouteImport.update({
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/jobs': typeof JobsRoute
   '/meetings': typeof MeetingsRoute
   '/research': typeof ResearchRoute
+  '/sa-gov-jobs': typeof SaGovJobsRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/jobs': typeof JobsRoute
   '/meetings': typeof MeetingsRoute
   '/research': typeof ResearchRoute
+  '/sa-gov-jobs': typeof SaGovJobsRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/jobs': typeof JobsRoute
   '/meetings': typeof MeetingsRoute
   '/research': typeof ResearchRoute
+  '/sa-gov-jobs': typeof SaGovJobsRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/meetings'
     | '/research'
+    | '/sa-gov-jobs'
     | '/tasks'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/meetings'
     | '/research'
+    | '/sa-gov-jobs'
     | '/tasks'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/meetings'
     | '/research'
+    | '/sa-gov-jobs'
     | '/tasks'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   JobsRoute: typeof JobsRoute
   MeetingsRoute: typeof MeetingsRoute
   ResearchRoute: typeof ResearchRoute
+  SaGovJobsRoute: typeof SaGovJobsRoute
   TasksRoute: typeof TasksRoute
 }
 
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sa-gov-jobs': {
+      id: '/sa-gov-jobs'
+      path: '/sa-gov-jobs'
+      fullPath: '/sa-gov-jobs'
+      preLoaderRoute: typeof SaGovJobsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/research': {
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   JobsRoute: JobsRoute,
   MeetingsRoute: MeetingsRoute,
   ResearchRoute: ResearchRoute,
+  SaGovJobsRoute: SaGovJobsRoute,
   TasksRoute: TasksRoute,
 }
 export const routeTree = rootRouteImport

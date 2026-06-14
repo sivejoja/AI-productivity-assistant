@@ -10,6 +10,8 @@ import {
   Briefcase,
   Globe,
   FileEdit,
+  Landmark,
+
 } from "lucide-react";
 import {
   Sidebar,
@@ -27,6 +29,7 @@ import {
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Job Seeker Portal", url: "/jobs", icon: Globe },
+  { title: "SA Government Jobs", url: "/sa-gov-jobs", icon: Landmark },
   { title: "AI Auto Apply", url: "/autoapply", icon: Briefcase },
   { title: "CV Revamp", url: "/cv-revamp", icon: FileEdit },
   { title: "Email Generator", url: "/email", icon: Mail },

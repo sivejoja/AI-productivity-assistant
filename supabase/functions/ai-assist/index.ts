@@ -53,21 +53,52 @@ Return markdown with:
 Be balanced and note uncertainty where relevant. Do not fabricate sources or statistics.`;
     case "chat":
       return `You are a helpful, concise AI workplace assistant. Use markdown formatting. Be direct, friendly, and professional. If a request is ambiguous, ask a brief clarifying question.`;
-    case "autoapply":
-      return `You are an AI Auto Apply assistant. The user message contains the candidate's CV and a JSON array of LIVE job listings (each with id, title, company, location, posted, url, snippet).
+    case "autoapply": {
+      const strictness = Number(options.strictness ?? "70"); // 0=flexible, 100=strict
+      const minMatch = Math.max(40, Math.min(95, strictness));
+      const avoid = (options.avoid_titles || "").trim();
+      const avoidLine = avoid
+        ? `\nUSER REJECTED THESE PREVIOUSLY (avoid anything similar): ${avoid}`
+        : "";
+      return `You are an AI Auto Apply assistant. The user message contains the candidate's CV and a JSON array of LIVE job listings (id, title, company, location, posted, url, snippet).
 
-CRITICAL: You MUST use the EXACT urls from the listings as the apply links. Do NOT invent or modify URLs. Do NOT use LinkedIn/Indeed search URLs — the provided urls are direct links to the live posting.
+CRITICAL RULES:
+- Use the EXACT urls from the listings as apply links. NEVER invent URLs.
+- DROP any job with match below ${minMatch}%. The user's strictness setting is ${strictness}/100 — higher means fewer, better matches.
+- Quality over quantity. NEVER pad with weak matches.${avoidLine}
 
-BE STRICT ABOUT RELEVANCE. Silently DROP any job that is not a strong fit for the candidate's CV. A strong fit means:
-- Title/seniority within ONE step of what the CV supports (no junior CVs for director roles, no backend CVs for pure design roles).
-- At least 60% of the listing's core required skills appear in the CV or are clearly transferable.
-- Industry/domain or tech stack overlaps meaningfully.
-Quality over quantity: 3 excellent matches beat 12 mediocre ones. If fewer than 3 jobs qualify, return only those and add a short note suggesting better search terms. NEVER pad the list with weak matches.
+RETURN ONLY VALID JSON (no prose, no markdown fences) matching this exact shape:
+{
+  "profile": {
+    "headline": "one-line summary",
+    "skills": ["top","skills","from","cv"],
+    "experience": "X years, seniority",
+    "best_fit_roles": ["role1","role2"]
+  },
+  "suggested_roles": [
+    { "role": "Adjacent role title", "why": "one-line fit reason" }
+  ],
+  "matches": [
+    {
+      "id": "<exact id from input>",
+      "title": "<job title>",
+      "company": "<company>",
+      "location": "<location>",
+      "posted": "<posted string from input>",
+      "url": "<EXACT url from input>",
+      "match_percent": 85,
+      "interview_probability": "Low|Medium|High|Very High",
+      "why_match": "1-2 sentence explanation of fit",
+      "matched_keywords": ["specific","CV","skills","that","matched","this","listing"],
+      "cover_letter": "4-6 sentence first-person cover letter referencing CV strengths and the role",
+      "checklist": ["short tip","short tip","short tip"]
+    }
+  ],
+  "note": "optional short note ONLY if fewer than 3 matches qualify, suggesting better search terms"
+}
 
-Do THREE things:
-1. Extract a short candidate profile (top skills, years of experience, seniority, domains).
-2. Suggest 3 adjacent roles the candidate did NOT mention but that fit their CV.
-3. Rank STRONG-FIT jobs only (match ≥ 70%) by interview probability, best matches first.
+Rank matches best-first. Provide 3 suggested_roles. Output JSON only.`;
+    }
 
 Return markdown in this exact structure:
 

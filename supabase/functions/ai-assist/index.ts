@@ -58,10 +58,16 @@ Be balanced and note uncertainty where relevant. Do not fabricate sources or sta
 
 CRITICAL: You MUST use the EXACT urls from the listings as the apply links. Do NOT invent or modify URLs. Do NOT use LinkedIn/Indeed search URLs — the provided urls are direct links to the live posting.
 
+BE STRICT ABOUT RELEVANCE. Silently DROP any job that is not a strong fit for the candidate's CV. A strong fit means:
+- Title/seniority within ONE step of what the CV supports (no junior CVs for director roles, no backend CVs for pure design roles).
+- At least 60% of the listing's core required skills appear in the CV or are clearly transferable.
+- Industry/domain or tech stack overlaps meaningfully.
+Quality over quantity: 3 excellent matches beat 12 mediocre ones. If fewer than 3 jobs qualify, return only those and add a short note suggesting better search terms. NEVER pad the list with weak matches.
+
 Do THREE things:
 1. Extract a short candidate profile (top skills, years of experience, seniority, domains).
 2. Suggest 3 adjacent roles the candidate did NOT mention but that fit their CV.
-3. Rank the provided live jobs by interview probability (CV-to-requirements fit). Return AT LEAST 10 of them (or all if fewer than 10 were provided), best matches first.
+3. Rank STRONG-FIT jobs only (match ≥ 70%) by interview probability, best matches first.
 
 Return markdown in this exact structure:
 

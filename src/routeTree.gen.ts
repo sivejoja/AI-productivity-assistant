@@ -19,6 +19,7 @@ import { Route as CvRevampRouteImport } from './routes/cv-revamp'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AutoapplyRouteImport } from './routes/autoapply'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AutoapplyHistoryRouteImport } from './routes/autoapply.history'
 import { Route as AutoapplyJobIdRouteImport } from './routes/autoapply.$jobId'
 
 const TasksRoute = TasksRouteImport.update({
@@ -71,6 +72,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AutoapplyHistoryRoute = AutoapplyHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AutoapplyRoute,
+} as any)
 const AutoapplyJobIdRoute = AutoapplyJobIdRouteImport.update({
   id: '/$jobId',
   path: '/$jobId',
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/sa-gov-jobs': typeof SaGovJobsRoute
   '/tasks': typeof TasksRoute
   '/autoapply/$jobId': typeof AutoapplyJobIdRoute
+  '/autoapply/history': typeof AutoapplyHistoryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -102,6 +109,7 @@ export interface FileRoutesByTo {
   '/sa-gov-jobs': typeof SaGovJobsRoute
   '/tasks': typeof TasksRoute
   '/autoapply/$jobId': typeof AutoapplyJobIdRoute
+  '/autoapply/history': typeof AutoapplyHistoryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/sa-gov-jobs': typeof SaGovJobsRoute
   '/tasks': typeof TasksRoute
   '/autoapply/$jobId': typeof AutoapplyJobIdRoute
+  '/autoapply/history': typeof AutoapplyHistoryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/sa-gov-jobs'
     | '/tasks'
     | '/autoapply/$jobId'
+    | '/autoapply/history'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/sa-gov-jobs'
     | '/tasks'
     | '/autoapply/$jobId'
+    | '/autoapply/history'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/sa-gov-jobs'
     | '/tasks'
     | '/autoapply/$jobId'
+    | '/autoapply/history'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -244,6 +256,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/autoapply/history': {
+      id: '/autoapply/history'
+      path: '/history'
+      fullPath: '/autoapply/history'
+      preLoaderRoute: typeof AutoapplyHistoryRouteImport
+      parentRoute: typeof AutoapplyRoute
+    }
     '/autoapply/$jobId': {
       id: '/autoapply/$jobId'
       path: '/$jobId'
@@ -256,10 +275,12 @@ declare module '@tanstack/react-router' {
 
 interface AutoapplyRouteChildren {
   AutoapplyJobIdRoute: typeof AutoapplyJobIdRoute
+  AutoapplyHistoryRoute: typeof AutoapplyHistoryRoute
 }
 
 const AutoapplyRouteChildren: AutoapplyRouteChildren = {
   AutoapplyJobIdRoute: AutoapplyJobIdRoute,
+  AutoapplyHistoryRoute: AutoapplyHistoryRoute,
 }
 
 const AutoapplyRouteWithChildren = AutoapplyRoute._addFileChildren(

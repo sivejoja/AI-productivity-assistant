@@ -258,12 +258,13 @@ function AutoApply() {
       setResult(finalResult);
       setShortlist(enriched);
 
-      // Record to history
+      // Record to history (strip description to keep localStorage small)
       recordHistory({
         filters: { role, where, country, strictness, targetCategories, excludeTags },
-        matches: enriched,
+        matches: enriched.map(({ description: _d, ...rest }) => rest),
         feedback: {},
       });
+
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Match failed");
     } finally {

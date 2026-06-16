@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Briefcase, Sparkles, Upload, ExternalLink, MapPin, Calendar, Building2,
   ThumbsUp, ThumbsDown, FileDown, FileSpreadsheet, Target, CheckCircle2,
+  Save, History as HistoryIcon, Mail, X, Trash2, ChevronRight,
 } from "lucide-react";
 import { FeatureShell } from "@/components/feature-shell";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,12 @@ import {
   buildAvoidList, getFeedback, setFeedback, clearFeedback, type FeedbackValue,
 } from "@/lib/job-feedback";
 import { downloadMatchesCsv, downloadMatchesPdf, type ExportMatch } from "@/lib/match-export";
+import { setShortlist, type CachedMatch } from "@/lib/match-cache";
+import {
+  listPresets, savePreset, deletePreset, type SearchPreset,
+} from "@/lib/search-presets";
+import { loadPrefs, savePrefs } from "@/lib/preference-store";
+import { recordHistory } from "@/lib/match-history";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/autoapply")({
@@ -35,20 +42,7 @@ const COUNTRIES = [
   ["in", "India"], ["za", "South Africa"], ["sg", "Singapore"],
 ] as const;
 
-interface Match {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  posted: string;
-  url: string;
-  match_percent: number;
-  interview_probability: string;
-  why_match: string;
-  matched_keywords: string[];
-  cover_letter: string;
-  checklist: string[];
-}
+interface Match extends CachedMatch {}
 
 interface AiResult {
   profile?: {
@@ -72,10 +66,8 @@ function postedAgo(iso: string) {
 function parseJsonResponse(raw: string): AiResult | null {
   if (!raw) return null;
   let text = raw.trim();
-  // strip optional ```json fences
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced) text = fenced[1].trim();
-  // fallback: first { ... last }
   if (!text.startsWith("{")) {
     const first = text.indexOf("{");
     const last = text.lastIndexOf("}");
@@ -97,11 +89,55 @@ function strictnessLabel(v: number) {
 }
 
 function probabilityColor(p: string) {
-  const x = p.toLowerCase();
+  const x = (p || "").toLowerCase();
   if (x.includes("very high")) return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30";
   if (x.includes("high")) return "bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/30";
   if (x.includes("medium")) return "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30";
   return "bg-muted text-muted-foreground";
+}
+
+// Small chip-input for category / tag lists.
+function ChipInput({
+  value, onChange, placeholder,
+}: { value: string[]; onChange: (v: string[]) => void; placeholder: string }) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const v = draft.trim();
+    if (!v) return;
+    if (!value.includes(v)) onChange([...value, v]);
+    setDraft("");
+  };
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); }
+          }}
+          placeholder={placeholder}
+        />
+        <Button type="button" size="sm" variant="outline" onClick={add}>Add</Button>
+      </div>
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {value.map((v) => (
+            <Badge key={v} variant="secondary" className="gap-1 text-xs">
+              {v}
+              <button
+                onClick={() => onChange(value.filter((x) => x !== v))}
+                className="ml-0.5 rounded-full hover:bg-muted-foreground/20"
+                aria-label={`Remove ${v}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AutoApply() {
@@ -109,12 +145,25 @@ function AutoApply() {
   const [role, setRole] = useState("");
   const [where, setWhere] = useState("");
   const [country, setCountry] = useState("us");
-  const [strictness, setStrictness] = useState(70);
+  const [strictness, setStrictness] = useState(55);
+  const initialPrefs = typeof window !== "undefined" ? loadPrefs() : { targetCategories: [], excludeTags: [] };
+  const [targetCategories, setTargetCategories] = useState<string[]>(initialPrefs.targetCategories);
+  const [excludeTags, setExcludeTags] = useState<string[]>(initialPrefs.excludeTags);
   const [result, setResult] = useState<AiResult | null>(null);
+  const [rawLiveFallback, setRawLiveFallback] = useState<Match[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [feedbackTick, setFeedbackTick] = useState(0);
+  const [presets, setPresets] = useState<SearchPreset[]>(() =>
+    typeof window !== "undefined" ? listPresets() : [],
+  );
+  const [presetName, setPresetName] = useState("");
+  const [emailTo, setEmailTo] = useState("");
   const searchFn = useServerFn(searchJobs);
+
+  useEffect(() => {
+    savePrefs({ targetCategories, excludeTags });
+  }, [targetCategories, excludeTags]);
 
   const onFile = async (file: File | null) => {
     if (!file) return;
@@ -138,6 +187,7 @@ function AutoApply() {
     saveCv(cv);
     setLoading(true);
     setResult(null);
+    setRawLiveFallback(null);
     try {
       const search = await searchFn({
         data: {
@@ -164,18 +214,57 @@ function AutoApply() {
         options: {
           strictness: String(strictness),
           avoid_titles: buildAvoidList(),
+          target_categories: targetCategories.join(", "),
+          exclude_tags: excludeTags.join(", "),
         },
       });
       const parsed = parseJsonResponse(content);
-      if (!parsed || !Array.isArray(parsed.matches)) {
-        toast.error("AI returned an unexpected format. Try again.");
+
+      // Build raw-live fallback regardless, so the screen is never empty.
+      const fallback: Match[] = live.slice(0, 10).map((j) => ({
+        id: j.id,
+        title: j.title,
+        company: j.company,
+        location: j.location,
+        posted: postedAgo(j.created),
+        url: j.redirect_url,
+        match_percent: 0,
+        interview_probability: "Unknown",
+        why_match: "AI ranking unavailable — showing raw live listing.",
+        matched_keywords: [],
+        cover_letter: "",
+        checklist: [],
+        description: j.description,
+      }));
+
+      if (!parsed || !Array.isArray(parsed.matches) || parsed.matches.length === 0) {
+        setRawLiveFallback(fallback);
+        setShortlist(fallback);
+        toast.message(
+          !parsed ? "AI returned unexpected format — showing raw live listings."
+                  : "No AI matches — showing raw live listings instead.",
+        );
         setLoading(false);
         return;
       }
-      setResult(parsed);
-      if (parsed.matches.length === 0) {
-        toast.message("No strong matches at this strictness level. Try loosening the slider.");
-      }
+
+      // Enrich each match with the full description from live listings.
+      const liveById = new Map(live.map((j) => [j.id, j]));
+      const enriched: Match[] = parsed.matches.map((m) => ({
+        ...m,
+        description: liveById.get(m.id)?.description ?? "",
+      }));
+      const finalResult: AiResult = { ...parsed, matches: enriched };
+      setResult(finalResult);
+      setShortlist(enriched);
+
+      // Record to history (strip description to keep localStorage small)
+      recordHistory({
+        filters: { role, where, country, strictness, targetCategories, excludeTags },
+        matches: enriched.map(({ description: _d, ...rest }) => rest),
+        feedback: {},
+      });
+
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Match failed");
     } finally {
@@ -190,17 +279,17 @@ function AutoApply() {
       toast.success("Feedback cleared");
     } else {
       setFeedback({ url: m.url, title: m.title, company: m.company, value });
-      toast.success(value === "relevant" ? "Marked relevant — future runs will favour similar roles." : "Hidden — future runs will avoid similar roles.");
+      toast.success(value === "relevant"
+        ? "Marked relevant — future runs will favour similar roles."
+        : "Hidden — future runs will avoid similar roles.");
     }
     setFeedbackTick((n) => n + 1);
   };
 
-  // Hide jobs the user marked not_for_me from the current display.
+  const allMatches: Match[] = result?.matches ?? rawLiveFallback ?? [];
   const visibleMatches = useMemo(() => {
-    if (!result?.matches) return [];
-    return result.matches.filter((m) => getFeedback(m.url) !== "not_for_me");
-    // feedbackTick triggers re-eval
-  }, [result, feedbackTick]); // eslint-disable-line react-hooks/exhaustive-deps
+    return allMatches.filter((m) => getFeedback(m.url) !== "not_for_me");
+  }, [allMatches, feedbackTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const exportData: ExportMatch[] = useMemo(
     () => visibleMatches.map((m) => ({
@@ -212,12 +301,70 @@ function AutoApply() {
     [visibleMatches],
   );
 
+  const handleSavePreset = () => {
+    if (!presetName.trim()) return toast.error("Name your preset first.");
+    const p = savePreset({
+      name: presetName.trim(), role, where, country, strictness,
+      targetCategories, excludeTags,
+    });
+    setPresets(listPresets());
+    setPresetName("");
+    toast.success(`Saved "${p.name}"`);
+  };
+
+  const handleLoadPreset = (id: string) => {
+    const p = presets.find((x) => x.id === id);
+    if (!p) return;
+    setRole(p.role); setWhere(p.where); setCountry(p.country);
+    setStrictness(p.strictness);
+    setTargetCategories(p.targetCategories ?? []);
+    setExcludeTags(p.excludeTags ?? []);
+    toast.success(`Loaded "${p.name}"`);
+  };
+
+  const handleDeletePreset = (id: string) => {
+    deletePreset(id);
+    setPresets(listPresets());
+  };
+
+  const handleEmailShortlist = () => {
+    if (!emailTo.trim()) return toast.error("Enter an email address.");
+    if (!exportData.length) return toast.error("No matches to email.");
+    const subject = `Your job shortlist (${exportData.length} matches)`;
+    const lines = [
+      `Generated: ${new Date().toLocaleString()}`,
+      `Filters: role="${role || "(open)"}", where="${where || "(any)"}", country=${country}, strictness=${strictness}%`,
+      targetCategories.length ? `Target categories: ${targetCategories.join(", ")}` : "",
+      excludeTags.length ? `Excluded tags: ${excludeTags.join(", ")}` : "",
+      "",
+      "── MATCHES ──",
+      "",
+      ...exportData.map((m, i) =>
+        `${i + 1}. ${m.title} — ${m.company}\n   Match ${m.match_percent}% · ${m.interview_probability} · ${m.location} · ${m.posted}\n   Why: ${m.why_match}\n   Apply: ${m.url}\n`,
+      ),
+      "",
+      "Tip: download the CSV/PDF from the AI Auto Apply page to attach a file copy.",
+    ].filter(Boolean).join("\n");
+    const href = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines)}`;
+    window.location.href = href;
+    toast.success("Opening your email client…");
+  };
+
   return (
     <FeatureShell
       title="AI Auto Apply"
-      description="Live jobs ranked against your CV. Tune strictness, give thumbs up/down to teach the AI, and export your shortlist."
+      description="Live jobs ranked against your CV. Tune strictness, give thumbs up/down to teach the AI, save presets, and export your shortlist."
       icon={<Briefcase className="h-5 w-5" />}
     >
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Button asChild size="sm" variant="outline">
+          <Link to="/autoapply/history">
+            <HistoryIcon className="h-3.5 w-3.5" />
+            <span className="ml-1.5 text-xs">Match history</span>
+          </Link>
+        </Button>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* LEFT: inputs */}
         <div className="space-y-4 rounded-lg border bg-card p-4">
@@ -289,6 +436,63 @@ function AutoApply() {
             </p>
           </div>
 
+          {/* Preferences: target categories + exclusion tags */}
+          <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Learning preferences
+            </Label>
+            <div className="space-y-1">
+              <Label className="text-xs">Target job categories</Label>
+              <ChipInput
+                value={targetCategories} onChange={setTargetCategories}
+                placeholder="e.g. Data Science, DevOps, Remote-first"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Exclusion tags (drop listings mentioning these)</Label>
+              <ChipInput
+                value={excludeTags} onChange={setExcludeTags}
+                placeholder="e.g. on-site only, sales, night shift"
+              />
+            </div>
+          </div>
+
+          {/* Saved search presets */}
+          <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Saved search presets
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Preset name…" value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+              />
+              <Button type="button" size="sm" variant="outline" onClick={handleSavePreset}>
+                <Save className="h-3.5 w-3.5" />
+                <span className="ml-1.5 text-xs">Save</span>
+              </Button>
+            </div>
+            {presets.length > 0 ? (
+              <ul className="space-y-1">
+                {presets.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-2 rounded border bg-background px-2 py-1 text-xs">
+                    <button onClick={() => handleLoadPreset(p.id)} className="min-w-0 flex-1 truncate text-left hover:underline">
+                      {p.name}
+                      <span className="ml-1 text-muted-foreground">
+                        — {p.country}, {p.strictness}%
+                      </span>
+                    </button>
+                    <button onClick={() => handleDeletePreset(p.id)} className="text-muted-foreground hover:text-destructive">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">No presets saved yet.</p>
+            )}
+          </div>
+
           <Button onClick={generate} disabled={loading} className="w-full">
             <Sparkles className="h-4 w-4" />
             {loading ? "Ranking matches…" : "Find matches"}
@@ -297,7 +501,7 @@ function AutoApply() {
 
         {/* RIGHT: results */}
         <div className="space-y-4">
-          {!result && !loading && (
+          {!result && !rawLiveFallback && !loading && (
             <div className="rounded-lg border border-dashed bg-muted/20 p-8 text-center text-sm text-muted-foreground">
               Your ranked job matches will appear here.
             </div>
@@ -309,9 +513,9 @@ function AutoApply() {
             </div>
           )}
 
-          {result && (
+          {(result || rawLiveFallback) && (
             <>
-              {result.profile && (
+              {result?.profile && (
                 <div className="rounded-lg border bg-card p-4">
                   <h3 className="text-sm font-semibold">Candidate profile</h3>
                   {result.profile.headline && (
@@ -330,7 +534,7 @@ function AutoApply() {
                 </div>
               )}
 
-              {result.suggested_roles?.length ? (
+              {result?.suggested_roles?.length ? (
                 <div className="rounded-lg border bg-card p-4">
                   <h3 className="text-sm font-semibold">Adjacent roles to consider</h3>
                   <ul className="mt-2 space-y-1 text-sm">
@@ -348,7 +552,7 @@ function AutoApply() {
                 <h3 className="text-sm font-semibold">
                   {visibleMatches.length} matches shown
                 </h3>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button size="sm" variant="outline"
                     onClick={() => downloadMatchesCsv(exportData)}
                     disabled={!exportData.length}>
@@ -364,7 +568,26 @@ function AutoApply() {
                 </div>
               </div>
 
-              {result.note && (
+              {/* Email shortlist */}
+              <div className="rounded-md border bg-muted/30 p-3">
+                <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <Mail className="h-3.5 w-3.5" /> Email this shortlist
+                </Label>
+                <div className="mt-2 flex gap-2">
+                  <Input
+                    type="email" placeholder="you@example.com" value={emailTo}
+                    onChange={(e) => setEmailTo(e.target.value)}
+                  />
+                  <Button size="sm" onClick={handleEmailShortlist} disabled={!exportData.length}>
+                    Send
+                  </Button>
+                </div>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Opens your mail client with the shortlist in the body. Use the CSV / PDF buttons above if you want a file to attach.
+                </p>
+              </div>
+
+              {result?.note && (
                 <p className="rounded-md border border-dashed bg-muted/20 p-3 text-xs text-muted-foreground">
                   {result.note}
                 </p>
@@ -387,9 +610,11 @@ function AutoApply() {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {m.match_percent}% match
-                          </Badge>
+                          {m.match_percent > 0 && (
+                            <Badge variant="secondary" className="text-xs">
+                              {m.match_percent}% match
+                            </Badge>
+                          )}
                           <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${probabilityColor(m.interview_probability)}`}>
                             {m.interview_probability}
                           </span>
@@ -411,17 +636,6 @@ function AutoApply() {
                         ) : null}
                       </div>
 
-                      {m.cover_letter && (
-                        <details className="mt-3 text-sm">
-                          <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-                            Tailored cover letter
-                          </summary>
-                          <p className="mt-2 whitespace-pre-wrap rounded-md border bg-background p-3 text-sm">
-                            {m.cover_letter}
-                          </p>
-                        </details>
-                      )}
-
                       <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex gap-1">
                           <Button
@@ -441,17 +655,35 @@ function AutoApply() {
                             <span className="ml-1.5 text-xs">Not for me</span>
                           </Button>
                         </div>
-                        <Button asChild size="sm">
-                          <a href={m.url} target="_blank" rel="noopener noreferrer">
-                            Apply <ExternalLink className="h-3 w-3" />
-                          </a>
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button asChild size="sm" variant="outline">
+                            <Link to="/autoapply/$jobId" params={{ jobId: encodeURIComponent(m.id) }}>
+                              Details <ChevronRight className="h-3 w-3" />
+                            </Link>
+                          </Button>
+                          <Button asChild size="sm">
+                            <a href={m.url} target="_blank" rel="noopener noreferrer">
+                              Apply <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </Button>
+                        </div>
                       </div>
                     </article>
                   );
                 })}
 
-                {visibleMatches.length === 0 && (
+                {visibleMatches.length === 0 && allMatches.length > 0 && (
+                  <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                    All matches are hidden by your "Not for me" feedback.
+                    <Button
+                      variant="link" size="sm"
+                      onClick={() => { allMatches.forEach((m) => clearFeedback(m.url)); setFeedbackTick((n) => n + 1); }}
+                    >
+                      Clear filters
+                    </Button>
+                  </div>
+                )}
+                {allMatches.length === 0 && (
                   <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
                     No matches at this strictness level. Lower the slider or broaden your keywords.
                   </p>

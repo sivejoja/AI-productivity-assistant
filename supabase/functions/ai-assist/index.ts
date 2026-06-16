@@ -54,18 +54,26 @@ Be balanced and note uncertainty where relevant. Do not fabricate sources or sta
     case "chat":
       return `You are a helpful, concise AI workplace assistant. Use markdown formatting. Be direct, friendly, and professional. If a request is ambiguous, ask a brief clarifying question.`;
     case "autoapply": {
-      const strictness = Number(options.strictness ?? "70"); // 0=flexible, 100=strict
-      const minMatch = Math.max(40, Math.min(95, strictness));
+      const strictness = Number(options.strictness ?? "55"); // default 55 (Balanced)
+      const minMatch = Math.max(30, Math.min(95, strictness));
       const avoid = (options.avoid_titles || "").trim();
+      const targets = (options.target_categories || "").trim();
+      const excludes = (options.exclude_tags || "").trim();
       const avoidLine = avoid
         ? `\nUSER REJECTED THESE PREVIOUSLY (avoid anything similar): ${avoid}`
+        : "";
+      const targetLine = targets
+        ? `\nUSER TARGET CATEGORIES (prefer these): ${targets}`
+        : "";
+      const excludeLine = excludes
+        ? `\nUSER EXCLUSION TAGS (drop any listing mentioning these): ${excludes}`
         : "";
       return `You are an AI Auto Apply assistant. The user message contains the candidate's CV and a JSON array of LIVE job listings (id, title, company, location, posted, url, snippet).
 
 CRITICAL RULES:
-- Use the EXACT urls from the listings as apply links. NEVER invent URLs.
-- DROP any job with match below ${minMatch}%. The user's strictness setting is ${strictness}/100 — higher means fewer, better matches.
-- Quality over quantity. NEVER pad with weak matches.${avoidLine}
+- Use the EXACT urls AND ids from the listings. NEVER invent URLs or ids.
+- Aim to DROP jobs with match below ${minMatch}%. Strictness setting: ${strictness}/100.
+- HOWEVER: if fewer than 3 listings meet the threshold, INCLUDE the top 5 best-fit listings anyway (mark them with a lower match_percent and explain the gap in why_match). The user must never see an empty screen when live jobs exist.${avoidLine}${targetLine}${excludeLine}
 
 RETURN ONLY VALID JSON (no prose, no markdown fences) matching this exact shape:
 {
@@ -89,40 +97,17 @@ RETURN ONLY VALID JSON (no prose, no markdown fences) matching this exact shape:
       "match_percent": 85,
       "interview_probability": "Low|Medium|High|Very High",
       "why_match": "1-2 sentence explanation of fit",
-      "matched_keywords": ["specific","CV","skills","that","matched","this","listing"],
-      "cover_letter": "4-6 sentence first-person cover letter referencing CV strengths and the role",
+      "matched_keywords": ["specific","CV","skills","that","matched"],
+      "cover_letter": "4-6 sentence first-person cover letter",
       "checklist": ["short tip","short tip","short tip"]
     }
   ],
-  "note": "optional short note ONLY if fewer than 3 matches qualify, suggesting better search terms"
+  "note": "optional short note if fewer than 3 strong matches"
 }
 
 Rank matches best-first. Provide 3 suggested_roles. Output JSON only.`;
     }
 
-Return markdown in this exact structure:
-
-## Candidate Profile
-- **Headline:** one-line summary
-- **Top skills:** comma-separated
-- **Experience:** years + seniority
-- **Best-fit roles:** comma-separated
-
-## Suggested Roles You Didn't Mention
-3 adjacent roles, each with a one-line "why this fits you".
-
-## Ranked Live Job Matches
-For EACH job, in ranked order, use this template:
-
-### {n}. {Job Title} — {Company} *(Match: {%}, Interview probability: {Low/Medium/High/Very High})*
-- **Location:** {location} · Posted {posted}
-- **Why you'll likely get an interview:** 1–2 sentences citing specific CV strengths that match the listing's requirements.
-- **🔗 Apply now:** [Apply directly]({url})  ← use the EXACT url from the listing
-- **Tailored cover letter:**
-> A concise 4–6 sentence first-person cover letter referencing specific CV strengths and the role.
-- **Pre-submit checklist:** 3 short bullets (CV tweak, portfolio link, recruiter follow-up, etc.).
-
-End with a one-line reminder to confirm the role is still open before submitting.`;
     case "cvrevamp":
       return `You are an elite CV/resume writer who specializes in modern, ATS-friendly resumes for high-demand roles (AI/ML, product, data, cloud/devops, cybersecurity, full-stack, etc.).
 

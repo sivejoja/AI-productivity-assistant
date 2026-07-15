@@ -280,7 +280,7 @@ function AutoApply() {
 
       // Record to history (strip description to keep localStorage small)
       recordHistory({
-        filters: { role, where, country, strictness, targetCategories, excludeTags },
+        filters: { role: _role, where: _where, country: _country, strictness: _strict, targetCategories: _targets, excludeTags: _excludes },
         matches: enriched.map(({ description: _d, ...rest }) => rest),
         feedback: {},
       });

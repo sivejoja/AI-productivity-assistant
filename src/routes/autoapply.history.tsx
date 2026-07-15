@@ -128,7 +128,74 @@ function HistoryPage() {
             );
           })}
         </div>
+        </>
       )}
     </FeatureShell>
   );
 }
+
+function HistoryCharts({ items }: { items: HistoryEntry[] }) {
+  const data = useMemo(() => {
+    // oldest → newest for readable time axis
+    const ordered = [...items].sort((a, b) => a.ts - b.ts);
+    return ordered.map((e) => {
+      const relevant = e.matches.filter((m) => getFeedback(m.url) === "relevant").length;
+      const not = e.matches.filter((m) => getFeedback(m.url) === "not_for_me").length;
+      const rated = relevant + not;
+      const quality = rated > 0 ? Math.round((relevant / rated) * 100) : 0;
+      return {
+        label: new Date(e.ts).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        strictness: e.filters.strictness,
+        relevant, not_for_me: not,
+        matches: e.matches.length,
+        quality,
+      };
+    });
+  }, [items]);
+
+  const avgQuality = data.length
+    ? Math.round(data.reduce((s, d) => s + d.quality, 0) / data.length)
+    : 0;
+
+  return (
+    <section className="mb-4 rounded-lg border bg-card p-4">
+      <h3 className="flex items-center gap-2 text-sm font-semibold">
+        <BarChart3 className="h-4 w-4" /> Trends across your runs
+      </h3>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Avg match quality (relevant / rated): <strong>{avgQuality}%</strong> across {data.length} runs.
+      </p>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="h-56">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">Relevant vs Not-for-me per run</p>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="label" fontSize={10} />
+              <YAxis fontSize={10} allowDecimals={false} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Bar dataKey="relevant" fill="hsl(var(--primary))" name="Relevant" />
+              <Bar dataKey="not_for_me" fill="hsl(var(--destructive))" name="Not for me" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="h-56">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">Strictness vs match quality %</p>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="label" fontSize={10} />
+              <YAxis fontSize={10} domain={[0, 100]} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Line type="monotone" dataKey="strictness" stroke="hsl(var(--muted-foreground))" name="Strictness %" />
+              <Line type="monotone" dataKey="quality" stroke="hsl(var(--primary))" name="Match quality %" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </section>
+  );
+}
+

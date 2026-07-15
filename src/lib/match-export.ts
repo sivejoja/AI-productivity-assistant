@@ -20,6 +20,17 @@ function csvCell(v: string | number) {
   return s;
 }
 
+export function matchesToCsvString(matches: ExportMatch[]): string {
+  const headers = [
+    "Match %","Interview probability","Title","Company","Location","Posted","Why it matches","Matched keywords","Apply URL",
+  ];
+  const rows = matches.map((m) => [
+    m.match_percent, m.interview_probability, m.title, m.company, m.location, m.posted,
+    m.why_match, (m.matched_keywords || []).join("; "), m.url,
+  ]);
+  return [headers, ...rows].map((r) => r.map(csvCell).join(",")).join("\n");
+}
+
 export function downloadMatchesCsv(matches: ExportMatch[], base = "job-shortlist") {
   const headers = [
     "Match %",

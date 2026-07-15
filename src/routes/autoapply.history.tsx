@@ -64,7 +64,10 @@ function HistoryPage() {
           No runs yet — generate a shortlist on the AI Auto Apply page.
         </div>
       ) : (
+        <>
+          <HistoryCharts items={items} />
         <div className="space-y-3">
+
           {items.map((e) => {
             const relevant = e.matches.filter((m) => getFeedback(m.url) === "relevant").length;
             const not = e.matches.filter((m) => getFeedback(m.url) === "not_for_me").length;

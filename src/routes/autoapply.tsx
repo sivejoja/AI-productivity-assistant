@@ -232,10 +232,10 @@ function AutoApply() {
         feature: "autoapply",
         input,
         options: {
-          strictness: String(strictness),
+          strictness: String(_strict),
           avoid_titles: buildAvoidList(),
-          target_categories: targetCategories.join(", "),
-          exclude_tags: excludeTags.join(", "),
+          target_categories: _targets.join(", "),
+          exclude_tags: _excludes.join(", "),
         },
       });
       const parsed = parseJsonResponse(content);

@@ -68,7 +68,10 @@ Be balanced and note uncertainty where relevant. Do not fabricate sources or sta
       const excludeLine = excludes
         ? `\nUSER EXCLUSION TAGS (drop any listing mentioning these): ${excludes}`
         : "";
-      return `You are an AI Auto Apply assistant. The user message contains the candidate's CV and a JSON array of LIVE job listings (id, title, company, location, posted, url, snippet).
+      return `You are an AI Auto Apply assistant. The user message begins with pre-extracted CV signals (detected skills, recent roles, years of experience, location) followed by the full CV text and a JSON array of LIVE job listings (id, title, company, location, posted, url, snippet).
+
+USE THE PRE-EXTRACTED SIGNALS as the primary basis for scoring. When "matched_keywords" is populated, it MUST come from the DETECTED SKILLS list or terms clearly present in the CV — never invent skills the CV doesn't mention.
+
 
 CRITICAL RULES:
 - Use the EXACT urls AND ids from the listings. NEVER invent URLs or ids.

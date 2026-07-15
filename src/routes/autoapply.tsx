@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Briefcase, Sparkles, Upload, ExternalLink, MapPin, Calendar, Building2,
   ThumbsUp, ThumbsDown, FileDown, FileSpreadsheet, Target, CheckCircle2,
-  Save, History as HistoryIcon, Mail, X, Trash2, ChevronRight,
+  Save, History as HistoryIcon, Mail, X, Trash2, ChevronRight, Play, SlidersHorizontal, Eye,
 } from "lucide-react";
 import { FeatureShell } from "@/components/feature-shell";
 import { Button } from "@/components/ui/button";
@@ -16,14 +16,18 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { callAi } from "@/lib/ai";
 import { extractCvText } from "@/lib/cv-parser";
+import { extractCvSignals, formatCvPreface } from "@/lib/cv-signals";
 import { loadCv, saveCv } from "@/lib/cv-store";
 import { searchJobs } from "@/lib/jobs.functions";
 import {
   buildAvoidList, getFeedback, setFeedback, clearFeedback, type FeedbackValue,
 } from "@/lib/job-feedback";
-import { downloadMatchesCsv, downloadMatchesPdf, type ExportMatch } from "@/lib/match-export";
+import { downloadMatchesCsv, downloadMatchesPdf, matchesToCsvString, type ExportMatch } from "@/lib/match-export";
 import { setShortlist, type CachedMatch } from "@/lib/match-cache";
 import {
   listPresets, savePreset, deletePreset, type SearchPreset,
@@ -35,6 +39,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/autoapply")({
   component: AutoApply,
 });
+
 
 const COUNTRIES = [
   ["us", "United States"], ["gb", "United Kingdom"], ["au", "Australia"],
@@ -182,7 +187,19 @@ function AutoApply() {
     }
   };
 
-  const generate = async () => {
+  interface GenerateOverrides {
+    role?: string; where?: string; country?: string; strictness?: number;
+    targetCategories?: string[]; excludeTags?: string[];
+  }
+
+  const generate = async (overrides: GenerateOverrides = {}) => {
+    const _role = overrides.role ?? role;
+    const _where = overrides.where ?? where;
+    const _country = overrides.country ?? country;
+    const _strict = overrides.strictness ?? strictness;
+    const _targets = overrides.targetCategories ?? targetCategories;
+    const _excludes = overrides.excludeTags ?? excludeTags;
+
     if (cv.trim().length < 50) return toast.error("Upload or paste your CV first.");
     saveCv(cv);
     setLoading(true);
@@ -191,7 +208,7 @@ function AutoApply() {
     try {
       const search = await searchFn({
         data: {
-          what: role, where, country,
+          what: _role, where: _where, country: _country,
           page: 1, results_per_page: 20, max_days_old: 30, sort_by: "date",
         },
       });
@@ -207,15 +224,18 @@ function AutoApply() {
         posted: postedAgo(j.created), url: j.redirect_url,
         snippet: j.description.slice(0, 600),
       }));
-      const input = `CANDIDATE CV:\n${cv}\n\nPREFERENCES: role="${role || "(open)"}", location="${where || "(any)"}", country=${country}\n\nLIVE JOB LISTINGS:\n${JSON.stringify(jobsForAi, null, 2)}`;
+      const signals = extractCvSignals(cv);
+      const preface = formatCvPreface(signals);
+      const input = `${preface}\n\nCANDIDATE CV (full text):\n${cv}\n\nPREFERENCES: role="${_role || "(open)"}", location="${_where || "(any)"}", country=${_country}\n\nLIVE JOB LISTINGS:\n${JSON.stringify(jobsForAi, null, 2)}`;
+
       const content = await callAi({
         feature: "autoapply",
         input,
         options: {
-          strictness: String(strictness),
+          strictness: String(_strict),
           avoid_titles: buildAvoidList(),
-          target_categories: targetCategories.join(", "),
-          exclude_tags: excludeTags.join(", "),
+          target_categories: _targets.join(", "),
+          exclude_tags: _excludes.join(", "),
         },
       });
       const parsed = parseJsonResponse(content);
@@ -260,7 +280,7 @@ function AutoApply() {
 
       // Record to history (strip description to keep localStorage small)
       recordHistory({
-        filters: { role, where, country, strictness, targetCategories, excludeTags },
+        filters: { role: _role, where: _where, country: _country, strictness: _strict, targetCategories: _targets, excludeTags: _excludes },
         matches: enriched.map(({ description: _d, ...rest }) => rest),
         feedback: {},
       });
@@ -287,9 +307,67 @@ function AutoApply() {
   };
 
   const allMatches: Match[] = result?.matches ?? rawLiveFallback ?? [];
+
+  // Advanced shortlist filters (client-side, applied after AI ranking)
+  const [filterProvince, setFilterProvince] = useState<string>("__all");
+  const [filterRecency, setFilterRecency] = useState<string>("__all"); // "today" | "week" | "month" | "__all"
+  const [filterMinMatch, setFilterMinMatch] = useState<number>(0);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const SA_PROVINCES = ["Gauteng","Western Cape","KwaZulu-Natal","Eastern Cape","Free State","Limpopo","Mpumalanga","North West","Northern Cape"];
+  function detectProvince(m: Match): string {
+    const hay = `${m.location} ${m.title} ${m.description ?? ""}`.toLowerCase();
+    for (const p of SA_PROVINCES) if (hay.includes(p.toLowerCase())) return p;
+    const cityMap: Record<string, string> = {
+      "johannesburg": "Gauteng","pretoria": "Gauteng","sandton": "Gauteng","midrand": "Gauteng","centurion": "Gauteng",
+      "cape town": "Western Cape","stellenbosch": "Western Cape",
+      "durban": "KwaZulu-Natal","pietermaritzburg": "KwaZulu-Natal",
+      "port elizabeth": "Eastern Cape","gqeberha": "Eastern Cape","east london": "Eastern Cape",
+      "bloemfontein": "Free State","polokwane": "Limpopo","nelspruit": "Mpumalanga","mbombela": "Mpumalanga",
+      "kimberley": "Northern Cape","rustenburg": "North West","mahikeng": "North West",
+    };
+    for (const [city, prov] of Object.entries(cityMap)) if (hay.includes(city)) return prov;
+    return "Other";
+  }
+  function recencyBucket(posted: string): "today" | "week" | "month" | "older" {
+    const p = posted.toLowerCase();
+    if (p.includes("today") || p.includes("yesterday") || /^[1-6]\s+day/.test(p)) return "week";
+    if (p.includes("today") || p.includes("yesterday")) return "today";
+    if (/(\d+)\s+day/.test(p)) {
+      const n = parseInt(p.match(/(\d+)\s+day/)![1], 10);
+      if (n <= 1) return "today";
+      if (n <= 7) return "week";
+      if (n <= 30) return "month";
+      return "older";
+    }
+    if (p.includes("week")) return "week";
+    if (p.includes("month")) return "month";
+    return "older";
+  }
+
+  const facets = useMemo(() => {
+    const prov: Record<string, number> = {};
+    const rec: Record<string, number> = { today: 0, week: 0, month: 0, older: 0 };
+    const rel: Record<string, number> = { "90+": 0, "70-89": 0, "50-69": 0, "<50": 0 };
+    for (const m of allMatches) {
+      const p = detectProvince(m); prov[p] = (prov[p] ?? 0) + 1;
+      rec[recencyBucket(m.posted)]++;
+      const mp = m.match_percent;
+      if (mp >= 90) rel["90+"]++; else if (mp >= 70) rel["70-89"]++;
+      else if (mp >= 50) rel["50-69"]++; else rel["<50"]++;
+    }
+    return { prov, rec, rel };
+  }, [allMatches]);
+
   const visibleMatches = useMemo(() => {
-    return allMatches.filter((m) => getFeedback(m.url) !== "not_for_me");
-  }, [allMatches, feedbackTick]); // eslint-disable-line react-hooks/exhaustive-deps
+    return allMatches.filter((m) => {
+      if (getFeedback(m.url) === "not_for_me") return false;
+      if (filterProvince !== "__all" && detectProvince(m) !== filterProvince) return false;
+      if (filterRecency !== "__all" && recencyBucket(m.posted) !== filterRecency) return false;
+      if (filterMinMatch > 0 && m.match_percent < filterMinMatch) return false;
+      return true;
+    });
+  }, [allMatches, feedbackTick, filterProvince, filterRecency, filterMinMatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const exportData: ExportMatch[] = useMemo(
     () => visibleMatches.map((m) => ({
@@ -300,6 +378,7 @@ function AutoApply() {
     })),
     [visibleMatches],
   );
+
 
   const handleSavePreset = () => {
     if (!presetName.trim()) return toast.error("Name your preset first.");
@@ -327,28 +406,56 @@ function AutoApply() {
     setPresets(listPresets());
   };
 
-  const handleEmailShortlist = () => {
-    if (!emailTo.trim()) return toast.error("Enter an email address.");
-    if (!exportData.length) return toast.error("No matches to email.");
+  const handleRunPreset = (id: string) => {
+    const p = presets.find((x) => x.id === id);
+    if (!p) return;
+    setRole(p.role); setWhere(p.where); setCountry(p.country);
+    setStrictness(p.strictness);
+    setTargetCategories(p.targetCategories ?? []);
+    setExcludeTags(p.excludeTags ?? []);
+    toast.success(`Running "${p.name}"…`);
+    generate({
+      role: p.role, where: p.where, country: p.country, strictness: p.strictness,
+      targetCategories: p.targetCategories ?? [], excludeTags: p.excludeTags ?? [],
+    });
+  };
+
+  // Email preview state
+  const [emailPreviewOpen, setEmailPreviewOpen] = useState(false);
+  const emailPreview = useMemo(() => {
     const subject = `Your job shortlist (${exportData.length} matches)`;
-    const lines = [
+    const body = [
       `Generated: ${new Date().toLocaleString()}`,
       `Filters: role="${role || "(open)"}", where="${where || "(any)"}", country=${country}, strictness=${strictness}%`,
       targetCategories.length ? `Target categories: ${targetCategories.join(", ")}` : "",
       excludeTags.length ? `Excluded tags: ${excludeTags.join(", ")}` : "",
+      filterProvince !== "__all" ? `Province: ${filterProvince}` : "",
+      filterRecency !== "__all" ? `Recency: ${filterRecency}` : "",
+      filterMinMatch > 0 ? `Min match: ${filterMinMatch}%` : "",
       "",
       "── MATCHES ──",
       "",
       ...exportData.map((m, i) =>
         `${i + 1}. ${m.title} — ${m.company}\n   Match ${m.match_percent}% · ${m.interview_probability} · ${m.location} · ${m.posted}\n   Why: ${m.why_match}\n   Apply: ${m.url}\n`,
       ),
-      "",
-      "Tip: download the CSV/PDF from the AI Auto Apply page to attach a file copy.",
     ].filter(Boolean).join("\n");
-    const href = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines)}`;
+    return { subject, body, csv: matchesToCsvString(exportData) };
+  }, [exportData, role, where, country, strictness, targetCategories, excludeTags, filterProvince, filterRecency, filterMinMatch]);
+
+
+  const handleOpenEmailPreview = () => {
+    if (!exportData.length) return toast.error("No matches to email.");
+    setEmailPreviewOpen(true);
+  };
+
+  const handleConfirmSendEmail = () => {
+    if (!emailTo.trim()) return toast.error("Enter an email address.");
+    const href = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(emailPreview.subject)}&body=${encodeURIComponent(emailPreview.body)}`;
     window.location.href = href;
+    setEmailPreviewOpen(false);
     toast.success("Opening your email client…");
   };
+
 
   return (
     <FeatureShell
@@ -482,10 +589,19 @@ function AutoApply() {
                         — {p.country}, {p.strictness}%
                       </span>
                     </button>
+                    <button
+                      onClick={() => handleRunPreset(p.id)}
+                      disabled={loading}
+                      className="rounded p-0.5 text-primary hover:bg-primary/10 disabled:opacity-40"
+                      title="Run this preset now"
+                    >
+                      <Play className="h-3 w-3" />
+                    </button>
                     <button onClick={() => handleDeletePreset(p.id)} className="text-muted-foreground hover:text-destructive">
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </li>
+
                 ))}
               </ul>
             ) : (
@@ -493,7 +609,7 @@ function AutoApply() {
             )}
           </div>
 
-          <Button onClick={generate} disabled={loading} className="w-full">
+          <Button onClick={() => generate()} disabled={loading} className="w-full">
             <Sparkles className="h-4 w-4" />
             {loading ? "Ranking matches…" : "Find matches"}
           </Button>
@@ -568,7 +684,7 @@ function AutoApply() {
                 </div>
               </div>
 
-              {/* Email shortlist */}
+              {/* Email shortlist — preview first */}
               <div className="rounded-md border bg-muted/30 p-3">
                 <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <Mail className="h-3.5 w-3.5" /> Email this shortlist
@@ -578,14 +694,77 @@ function AutoApply() {
                     type="email" placeholder="you@example.com" value={emailTo}
                     onChange={(e) => setEmailTo(e.target.value)}
                   />
-                  <Button size="sm" onClick={handleEmailShortlist} disabled={!exportData.length}>
-                    Send
+                  <Button size="sm" variant="outline" onClick={handleOpenEmailPreview} disabled={!exportData.length}>
+                    <Eye className="h-3.5 w-3.5" />
+                    <span className="ml-1.5 text-xs">Preview & send</span>
                   </Button>
                 </div>
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  Opens your mail client with the shortlist in the body. Use the CSV / PDF buttons above if you want a file to attach.
+                  Preview the email body, CSV layout, and recipient before your mail client opens.
                 </p>
               </div>
+
+              {/* Advanced shortlist filters */}
+              <div className="rounded-md border bg-muted/30 p-3">
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((s) => !s)}
+                  className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  <span className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-3.5 w-3.5" /> Advanced filters
+                  </span>
+                  <span>{showFilters ? "Hide" : "Show"}</span>
+                </button>
+                {showFilters && (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Province</Label>
+                      <Select value={filterProvince} onValueChange={setFilterProvince}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all">All ({allMatches.length})</SelectItem>
+                          {Object.entries(facets.prov).sort((a, b) => b[1] - a[1]).map(([p, n]) => (
+                            <SelectItem key={p} value={p}>{p} ({n})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Recency</Label>
+                      <Select value={filterRecency} onValueChange={setFilterRecency}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all">Any time ({allMatches.length})</SelectItem>
+                          <SelectItem value="today">Today ({facets.rec.today})</SelectItem>
+                          <SelectItem value="week">This week ({facets.rec.week})</SelectItem>
+                          <SelectItem value="month">This month ({facets.rec.month})</SelectItem>
+                          <SelectItem value="older">Older ({facets.rec.older})</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        Min match {filterMinMatch > 0 ? `≥ ${filterMinMatch}%` : "(any)"}
+                      </Label>
+                      <Slider
+                        value={[filterMinMatch]} min={0} max={95} step={5}
+                        onValueChange={(v) => setFilterMinMatch(v[0])}
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        90+: {facets.rel["90+"]} · 70–89: {facets.rel["70-89"]} · 50–69: {facets.rel["50-69"]} · &lt;50: {facets.rel["<50"]}
+                      </p>
+                    </div>
+                    {(filterProvince !== "__all" || filterRecency !== "__all" || filterMinMatch > 0) && (
+                      <Button variant="ghost" size="sm" className="sm:col-span-3"
+                        onClick={() => { setFilterProvince("__all"); setFilterRecency("__all"); setFilterMinMatch(0); }}>
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
 
               {result?.note && (
                 <p className="rounded-md border border-dashed bg-muted/20 p-3 text-xs text-muted-foreground">
@@ -693,6 +872,51 @@ function AutoApply() {
           )}
         </div>
       </div>
+
+      <Dialog open={emailPreviewOpen} onOpenChange={setEmailPreviewOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Preview email before sending</DialogTitle>
+            <DialogDescription>
+              Confirm the recipient, subject, body, and CSV layout. Your mail client opens on Send.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Recipient</Label>
+              <Input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="you@example.com" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Subject</Label>
+              <Input value={emailPreview.subject} readOnly />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Body ({exportData.length} matches)</Label>
+              <Textarea rows={8} readOnly value={emailPreview.body} className="font-mono text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">CSV attachment preview</Label>
+              <Textarea rows={5} readOnly value={emailPreview.csv} className="font-mono text-[10px]" />
+              <p className="text-[10px] text-muted-foreground">
+                Mail clients can't be pre-filled with attachments — use the CSV/PDF buttons to download a file to attach manually.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailPreviewOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => downloadMatchesCsv(exportData)}>
+              <FileSpreadsheet className="h-3.5 w-3.5" /> <span className="ml-1.5 text-xs">CSV</span>
+            </Button>
+            <Button variant="outline" onClick={() => downloadMatchesPdf(exportData)}>
+              <FileDown className="h-3.5 w-3.5" /> <span className="ml-1.5 text-xs">PDF</span>
+            </Button>
+            <Button onClick={handleConfirmSendEmail}>
+              <Mail className="h-3.5 w-3.5" /> <span className="ml-1.5 text-xs">Send</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </FeatureShell>
   );
 }
+

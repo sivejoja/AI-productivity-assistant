@@ -307,9 +307,67 @@ function AutoApply() {
   };
 
   const allMatches: Match[] = result?.matches ?? rawLiveFallback ?? [];
+
+  // Advanced shortlist filters (client-side, applied after AI ranking)
+  const [filterProvince, setFilterProvince] = useState<string>("__all");
+  const [filterRecency, setFilterRecency] = useState<string>("__all"); // "today" | "week" | "month" | "__all"
+  const [filterMinMatch, setFilterMinMatch] = useState<number>(0);
+  const [showFilters, setShowFilters] = useState(false);
+
+  const SA_PROVINCES = ["Gauteng","Western Cape","KwaZulu-Natal","Eastern Cape","Free State","Limpopo","Mpumalanga","North West","Northern Cape"];
+  function detectProvince(m: Match): string {
+    const hay = `${m.location} ${m.title} ${m.description ?? ""}`.toLowerCase();
+    for (const p of SA_PROVINCES) if (hay.includes(p.toLowerCase())) return p;
+    const cityMap: Record<string, string> = {
+      "johannesburg": "Gauteng","pretoria": "Gauteng","sandton": "Gauteng","midrand": "Gauteng","centurion": "Gauteng",
+      "cape town": "Western Cape","stellenbosch": "Western Cape",
+      "durban": "KwaZulu-Natal","pietermaritzburg": "KwaZulu-Natal",
+      "port elizabeth": "Eastern Cape","gqeberha": "Eastern Cape","east london": "Eastern Cape",
+      "bloemfontein": "Free State","polokwane": "Limpopo","nelspruit": "Mpumalanga","mbombela": "Mpumalanga",
+      "kimberley": "Northern Cape","rustenburg": "North West","mahikeng": "North West",
+    };
+    for (const [city, prov] of Object.entries(cityMap)) if (hay.includes(city)) return prov;
+    return "Other";
+  }
+  function recencyBucket(posted: string): "today" | "week" | "month" | "older" {
+    const p = posted.toLowerCase();
+    if (p.includes("today") || p.includes("yesterday") || /^[1-6]\s+day/.test(p)) return "week";
+    if (p.includes("today") || p.includes("yesterday")) return "today";
+    if (/(\d+)\s+day/.test(p)) {
+      const n = parseInt(p.match(/(\d+)\s+day/)![1], 10);
+      if (n <= 1) return "today";
+      if (n <= 7) return "week";
+      if (n <= 30) return "month";
+      return "older";
+    }
+    if (p.includes("week")) return "week";
+    if (p.includes("month")) return "month";
+    return "older";
+  }
+
+  const facets = useMemo(() => {
+    const prov: Record<string, number> = {};
+    const rec: Record<string, number> = { today: 0, week: 0, month: 0, older: 0 };
+    const rel: Record<string, number> = { "90+": 0, "70-89": 0, "50-69": 0, "<50": 0 };
+    for (const m of allMatches) {
+      const p = detectProvince(m); prov[p] = (prov[p] ?? 0) + 1;
+      rec[recencyBucket(m.posted)]++;
+      const mp = m.match_percent;
+      if (mp >= 90) rel["90+"]++; else if (mp >= 70) rel["70-89"]++;
+      else if (mp >= 50) rel["50-69"]++; else rel["<50"]++;
+    }
+    return { prov, rec, rel };
+  }, [allMatches]);
+
   const visibleMatches = useMemo(() => {
-    return allMatches.filter((m) => getFeedback(m.url) !== "not_for_me");
-  }, [allMatches, feedbackTick]); // eslint-disable-line react-hooks/exhaustive-deps
+    return allMatches.filter((m) => {
+      if (getFeedback(m.url) === "not_for_me") return false;
+      if (filterProvince !== "__all" && detectProvince(m) !== filterProvince) return false;
+      if (filterRecency !== "__all" && recencyBucket(m.posted) !== filterRecency) return false;
+      if (filterMinMatch > 0 && m.match_percent < filterMinMatch) return false;
+      return true;
+    });
+  }, [allMatches, feedbackTick, filterProvince, filterRecency, filterMinMatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const exportData: ExportMatch[] = useMemo(
     () => visibleMatches.map((m) => ({
@@ -320,6 +378,7 @@ function AutoApply() {
     })),
     [visibleMatches],
   );
+
 
   const handleSavePreset = () => {
     if (!presetName.trim()) return toast.error("Name your preset first.");

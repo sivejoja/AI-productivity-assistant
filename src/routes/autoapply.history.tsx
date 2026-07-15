@@ -1,8 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  History as HistoryIcon, ArrowLeft, Trash2, FileSpreadsheet, FileDown, ThumbsUp, ThumbsDown,
+  History as HistoryIcon, ArrowLeft, Trash2, FileSpreadsheet, FileDown, ThumbsUp, ThumbsDown, BarChart3,
 } from "lucide-react";
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+} from "recharts";
 import { FeatureShell } from "@/components/feature-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +15,7 @@ import {
 import { downloadMatchesCsv, downloadMatchesPdf, type ExportMatch } from "@/lib/match-export";
 import { getFeedback } from "@/lib/job-feedback";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/autoapply/history")({
   component: HistoryPage,

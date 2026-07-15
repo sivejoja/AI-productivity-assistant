@@ -513,7 +513,7 @@ function AutoApply() {
             )}
           </div>
 
-          <Button onClick={generate} disabled={loading} className="w-full">
+          <Button onClick={() => generate()} disabled={loading} className="w-full">
             <Sparkles className="h-4 w-4" />
             {loading ? "Ranking matches…" : "Find matches"}
           </Button>

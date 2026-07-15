@@ -684,7 +684,7 @@ function AutoApply() {
                 </div>
               </div>
 
-              {/* Email shortlist */}
+              {/* Email shortlist — preview first */}
               <div className="rounded-md border bg-muted/30 p-3">
                 <Label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <Mail className="h-3.5 w-3.5" /> Email this shortlist
@@ -694,14 +694,77 @@ function AutoApply() {
                     type="email" placeholder="you@example.com" value={emailTo}
                     onChange={(e) => setEmailTo(e.target.value)}
                   />
-                  <Button size="sm" onClick={handleEmailShortlist} disabled={!exportData.length}>
-                    Send
+                  <Button size="sm" variant="outline" onClick={handleOpenEmailPreview} disabled={!exportData.length}>
+                    <Eye className="h-3.5 w-3.5" />
+                    <span className="ml-1.5 text-xs">Preview & send</span>
                   </Button>
                 </div>
                 <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  Opens your mail client with the shortlist in the body. Use the CSV / PDF buttons above if you want a file to attach.
+                  Preview the email body, CSV layout, and recipient before your mail client opens.
                 </p>
               </div>
+
+              {/* Advanced shortlist filters */}
+              <div className="rounded-md border bg-muted/30 p-3">
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((s) => !s)}
+                  className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  <span className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-3.5 w-3.5" /> Advanced filters
+                  </span>
+                  <span>{showFilters ? "Hide" : "Show"}</span>
+                </button>
+                {showFilters && (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Province</Label>
+                      <Select value={filterProvince} onValueChange={setFilterProvince}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all">All ({allMatches.length})</SelectItem>
+                          {Object.entries(facets.prov).sort((a, b) => b[1] - a[1]).map(([p, n]) => (
+                            <SelectItem key={p} value={p}>{p} ({n})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Recency</Label>
+                      <Select value={filterRecency} onValueChange={setFilterRecency}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all">Any time ({allMatches.length})</SelectItem>
+                          <SelectItem value="today">Today ({facets.rec.today})</SelectItem>
+                          <SelectItem value="week">This week ({facets.rec.week})</SelectItem>
+                          <SelectItem value="month">This month ({facets.rec.month})</SelectItem>
+                          <SelectItem value="older">Older ({facets.rec.older})</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">
+                        Min match {filterMinMatch > 0 ? `≥ ${filterMinMatch}%` : "(any)"}
+                      </Label>
+                      <Slider
+                        value={[filterMinMatch]} min={0} max={95} step={5}
+                        onValueChange={(v) => setFilterMinMatch(v[0])}
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        90+: {facets.rel["90+"]} · 70–89: {facets.rel["70-89"]} · 50–69: {facets.rel["50-69"]} · &lt;50: {facets.rel["<50"]}
+                      </p>
+                    </div>
+                    {(filterProvince !== "__all" || filterRecency !== "__all" || filterMinMatch > 0) && (
+                      <Button variant="ghost" size="sm" className="sm:col-span-3"
+                        onClick={() => { setFilterProvince("__all"); setFilterRecency("__all"); setFilterMinMatch(0); }}>
+                        Clear filters
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
 
               {result?.note && (
                 <p className="rounded-md border border-dashed bg-muted/20 p-3 text-xs text-muted-foreground">

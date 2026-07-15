@@ -589,10 +589,19 @@ function AutoApply() {
                         — {p.country}, {p.strictness}%
                       </span>
                     </button>
+                    <button
+                      onClick={() => handleRunPreset(p.id)}
+                      disabled={loading}
+                      className="rounded p-0.5 text-primary hover:bg-primary/10 disabled:opacity-40"
+                      title="Run this preset now"
+                    >
+                      <Play className="h-3 w-3" />
+                    </button>
                     <button onClick={() => handleDeletePreset(p.id)} className="text-muted-foreground hover:text-destructive">
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </li>
+
                 ))}
               </ul>
             ) : (

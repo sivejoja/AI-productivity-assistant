@@ -187,7 +187,19 @@ function AutoApply() {
     }
   };
 
-  const generate = async () => {
+  interface GenerateOverrides {
+    role?: string; where?: string; country?: string; strictness?: number;
+    targetCategories?: string[]; excludeTags?: string[];
+  }
+
+  const generate = async (overrides: GenerateOverrides = {}) => {
+    const _role = overrides.role ?? role;
+    const _where = overrides.where ?? where;
+    const _country = overrides.country ?? country;
+    const _strict = overrides.strictness ?? strictness;
+    const _targets = overrides.targetCategories ?? targetCategories;
+    const _excludes = overrides.excludeTags ?? excludeTags;
+
     if (cv.trim().length < 50) return toast.error("Upload or paste your CV first.");
     saveCv(cv);
     setLoading(true);
@@ -196,7 +208,7 @@ function AutoApply() {
     try {
       const search = await searchFn({
         data: {
-          what: role, where, country,
+          what: _role, where: _where, country: _country,
           page: 1, results_per_page: 20, max_days_old: 30, sort_by: "date",
         },
       });
@@ -212,7 +224,10 @@ function AutoApply() {
         posted: postedAgo(j.created), url: j.redirect_url,
         snippet: j.description.slice(0, 600),
       }));
-      const input = `CANDIDATE CV:\n${cv}\n\nPREFERENCES: role="${role || "(open)"}", location="${where || "(any)"}", country=${country}\n\nLIVE JOB LISTINGS:\n${JSON.stringify(jobsForAi, null, 2)}`;
+      const signals = extractCvSignals(cv);
+      const preface = formatCvPreface(signals);
+      const input = `${preface}\n\nCANDIDATE CV (full text):\n${cv}\n\nPREFERENCES: role="${_role || "(open)"}", location="${_where || "(any)"}", country=${_country}\n\nLIVE JOB LISTINGS:\n${JSON.stringify(jobsForAi, null, 2)}`;
+
       const content = await callAi({
         feature: "autoapply",
         input,

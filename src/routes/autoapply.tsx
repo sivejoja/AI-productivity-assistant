@@ -406,6 +406,43 @@ function AutoApply() {
     setPresets(listPresets());
   };
 
+  const handleRunPreset = (id: string) => {
+    const p = presets.find((x) => x.id === id);
+    if (!p) return;
+    setRole(p.role); setWhere(p.where); setCountry(p.country);
+    setStrictness(p.strictness);
+    setTargetCategories(p.targetCategories ?? []);
+    setExcludeTags(p.excludeTags ?? []);
+    toast.success(`Running "${p.name}"…`);
+    generate({
+      role: p.role, where: p.where, country: p.country, strictness: p.strictness,
+      targetCategories: p.targetCategories ?? [], excludeTags: p.excludeTags ?? [],
+    });
+  };
+
+  // Email preview state
+  const [emailPreviewOpen, setEmailPreviewOpen] = useState(false);
+  const emailPreview = useMemo(() => {
+    const subject = `Your job shortlist (${exportData.length} matches)`;
+    const body = [
+      `Generated: ${new Date().toLocaleString()}`,
+      `Filters: role="${role || "(open)"}", where="${where || "(any)"}", country=${country}, strictness=${strictness}%`,
+      targetCategories.length ? `Target categories: ${targetCategories.join(", ")}` : "",
+      excludeTags.length ? `Excluded tags: ${excludeTags.join(", ")}` : "",
+      filterProvince !== "__all" ? `Province: ${filterProvince}` : "",
+      filterRecency !== "__all" ? `Recency: ${filterRecency}` : "",
+      filterMinMatch > 0 ? `Min match: ${filterMinMatch}%` : "",
+      "",
+      "── MATCHES ──",
+      "",
+      ...exportData.map((m, i) =>
+        `${i + 1}. ${m.title} — ${m.company}\n   Match ${m.match_percent}% · ${m.interview_probability} · ${m.location} · ${m.posted}\n   Why: ${m.why_match}\n   Apply: ${m.url}\n`,
+      ),
+    ].filter(Boolean).join("\n");
+    return { subject, body, csv: matchesToCsvString(exportData) };
+  }, [exportData, role, where, country, strictness, targetCategories, excludeTags, filterProvince, filterRecency, filterMinMatch]);
+
+
   const handleEmailShortlist = () => {
     if (!emailTo.trim()) return toast.error("Enter an email address.");
     if (!exportData.length) return toast.error("No matches to email.");

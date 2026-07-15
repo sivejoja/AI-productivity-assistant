@@ -81,14 +81,18 @@ export const searchJobs = createServerFn({ method: "POST" })
     }
 
     const countryName = COUNTRY_NAMES[data.country] ?? data.country.toUpperCase();
+    const whereTrim = (data.where || "").trim();
+    // Quote the location so search engines respect it as a phrase.
+    const locationClause = whereTrim
+      ? `"${whereTrim}"`
+      : `in ${countryName}`;
     const parts = [
       data.what || "jobs",
       data.what ? "jobs" : "",
-      data.where ? `in ${data.where}` : `in ${countryName}`,
+      locationClause,
       data.remote ? "remote" : "",
       data.full_time ? "full time" : "",
     ].filter(Boolean);
-    // Bias toward real job boards so results are apply-ready.
     const query = `${parts.join(" ")} (site:linkedin.com/jobs OR site:indeed.com OR site:glassdoor.com OR site:weworkremotely.com OR site:remoteok.com OR site:lever.co OR site:greenhouse.io OR site:workable.com OR site:jobs.ashbyhq.com OR site:smartrecruiters.com OR site:bamboohr.com OR site:wellfound.com OR site:careers.google.com OR site:builtin.com)`;
 
     const body = {
@@ -130,14 +134,31 @@ export const searchJobs = createServerFn({ method: "POST" })
           id: r.url,
           title,
           company: deriveCompany(title, description, r.url),
-          location: data.where || countryName,
+          location: whereTrim || countryName,
           description,
           created: derivePosted(description),
           redirect_url: r.url,
         });
       }
-      jobs.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
-      return { jobs, total: jobs.length, error: null as string | null };
+      // Strict post-filter: when the user provided a specific location, keep
+      // only listings whose title, description, or URL mentions it. Prevents
+      // "showing all Cape Town jobs" when the user asked for Johannesburg.
+      let filtered = jobs;
+      if (whereTrim) {
+        const needle = whereTrim.toLowerCase();
+        const strict = jobs.filter((j) =>
+          j.title.toLowerCase().includes(needle) ||
+          j.description.toLowerCase().includes(needle) ||
+          j.redirect_url.toLowerCase().includes(needle),
+        );
+        // Only apply the filter if at least one result matches; otherwise the
+        // user would see nothing at all when the location doesn't appear in
+        // snippets — better to fall back to the country-wide set.
+        if (strict.length > 0) filtered = strict;
+      }
+      filtered.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+      return { jobs: filtered, total: filtered.length, error: null as string | null };
+
     } catch (e) {
       console.error("Firecrawl fetch failed", e);
       return { jobs: [] as AdzunaJob[], error: "Could not reach search service.", total: 0 };

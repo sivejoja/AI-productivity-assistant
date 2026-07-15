@@ -32,31 +32,10 @@ export function matchesToCsvString(matches: ExportMatch[]): string {
 }
 
 export function downloadMatchesCsv(matches: ExportMatch[], base = "job-shortlist") {
-  const headers = [
-    "Match %",
-    "Interview probability",
-    "Title",
-    "Company",
-    "Location",
-    "Posted",
-    "Why it matches",
-    "Matched keywords",
-    "Apply URL",
-  ];
-  const rows = matches.map((m) => [
-    m.match_percent,
-    m.interview_probability,
-    m.title,
-    m.company,
-    m.location,
-    m.posted,
-    m.why_match,
-    (m.matched_keywords || []).join("; "),
-    m.url,
-  ]);
-  const csv = [headers, ...rows].map((r) => r.map(csvCell).join(",")).join("\n");
+  const csv = matchesToCsvString(matches);
   saveAs(new Blob([csv], { type: "text/csv;charset=utf-8" }), `${base}.csv`);
 }
+
 
 export function downloadMatchesPdf(matches: ExportMatch[], base = "job-shortlist") {
   const doc = new jsPDF({ unit: "pt", format: "a4" });

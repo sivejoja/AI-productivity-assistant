@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Briefcase, Sparkles, Upload, ExternalLink, MapPin, Calendar, Building2,
   ThumbsUp, ThumbsDown, FileDown, FileSpreadsheet, Target, CheckCircle2,
-  Save, History as HistoryIcon, Mail, X, Trash2, ChevronRight,
+  Save, History as HistoryIcon, Mail, X, Trash2, ChevronRight, Play, SlidersHorizontal, Eye,
 } from "lucide-react";
 import { FeatureShell } from "@/components/feature-shell";
 import { Button } from "@/components/ui/button";
@@ -16,14 +16,18 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
 import { callAi } from "@/lib/ai";
 import { extractCvText } from "@/lib/cv-parser";
+import { extractCvSignals, formatCvPreface } from "@/lib/cv-signals";
 import { loadCv, saveCv } from "@/lib/cv-store";
 import { searchJobs } from "@/lib/jobs.functions";
 import {
   buildAvoidList, getFeedback, setFeedback, clearFeedback, type FeedbackValue,
 } from "@/lib/job-feedback";
-import { downloadMatchesCsv, downloadMatchesPdf, type ExportMatch } from "@/lib/match-export";
+import { downloadMatchesCsv, downloadMatchesPdf, matchesToCsvString, type ExportMatch } from "@/lib/match-export";
 import { setShortlist, type CachedMatch } from "@/lib/match-cache";
 import {
   listPresets, savePreset, deletePreset, type SearchPreset,
@@ -35,6 +39,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/autoapply")({
   component: AutoApply,
 });
+
 
 const COUNTRIES = [
   ["us", "United States"], ["gb", "United Kingdom"], ["au", "Australia"],

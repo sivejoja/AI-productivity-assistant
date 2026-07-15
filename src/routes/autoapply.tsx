@@ -443,28 +443,19 @@ function AutoApply() {
   }, [exportData, role, where, country, strictness, targetCategories, excludeTags, filterProvince, filterRecency, filterMinMatch]);
 
 
-  const handleEmailShortlist = () => {
-    if (!emailTo.trim()) return toast.error("Enter an email address.");
+  const handleOpenEmailPreview = () => {
     if (!exportData.length) return toast.error("No matches to email.");
-    const subject = `Your job shortlist (${exportData.length} matches)`;
-    const lines = [
-      `Generated: ${new Date().toLocaleString()}`,
-      `Filters: role="${role || "(open)"}", where="${where || "(any)"}", country=${country}, strictness=${strictness}%`,
-      targetCategories.length ? `Target categories: ${targetCategories.join(", ")}` : "",
-      excludeTags.length ? `Excluded tags: ${excludeTags.join(", ")}` : "",
-      "",
-      "── MATCHES ──",
-      "",
-      ...exportData.map((m, i) =>
-        `${i + 1}. ${m.title} — ${m.company}\n   Match ${m.match_percent}% · ${m.interview_probability} · ${m.location} · ${m.posted}\n   Why: ${m.why_match}\n   Apply: ${m.url}\n`,
-      ),
-      "",
-      "Tip: download the CSV/PDF from the AI Auto Apply page to attach a file copy.",
-    ].filter(Boolean).join("\n");
-    const href = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines)}`;
+    setEmailPreviewOpen(true);
+  };
+
+  const handleConfirmSendEmail = () => {
+    if (!emailTo.trim()) return toast.error("Enter an email address.");
+    const href = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(emailPreview.subject)}&body=${encodeURIComponent(emailPreview.body)}`;
     window.location.href = href;
+    setEmailPreviewOpen(false);
     toast.success("Opening your email client…");
   };
+
 
   return (
     <FeatureShell

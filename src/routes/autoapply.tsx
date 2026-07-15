@@ -872,6 +872,51 @@ function AutoApply() {
           )}
         </div>
       </div>
+
+      <Dialog open={emailPreviewOpen} onOpenChange={setEmailPreviewOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Preview email before sending</DialogTitle>
+            <DialogDescription>
+              Confirm the recipient, subject, body, and CSV layout. Your mail client opens on Send.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Recipient</Label>
+              <Input type="email" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} placeholder="you@example.com" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Subject</Label>
+              <Input value={emailPreview.subject} readOnly />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Body ({exportData.length} matches)</Label>
+              <Textarea rows={8} readOnly value={emailPreview.body} className="font-mono text-xs" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">CSV attachment preview</Label>
+              <Textarea rows={5} readOnly value={emailPreview.csv} className="font-mono text-[10px]" />
+              <p className="text-[10px] text-muted-foreground">
+                Mail clients can't be pre-filled with attachments — use the CSV/PDF buttons to download a file to attach manually.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailPreviewOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => downloadMatchesCsv(exportData)}>
+              <FileSpreadsheet className="h-3.5 w-3.5" /> <span className="ml-1.5 text-xs">CSV</span>
+            </Button>
+            <Button variant="outline" onClick={() => downloadMatchesPdf(exportData)}>
+              <FileDown className="h-3.5 w-3.5" /> <span className="ml-1.5 text-xs">PDF</span>
+            </Button>
+            <Button onClick={handleConfirmSendEmail}>
+              <Mail className="h-3.5 w-3.5" /> <span className="ml-1.5 text-xs">Send</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </FeatureShell>
   );
 }
+
